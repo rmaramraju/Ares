@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, WorkoutDay, DayStatus, ExerciseLog, ExerciseMetadata } from './types.ts';
 import { Card } from './components/Card.tsx';
+import { BiologicalScan } from './BiologicalScan.tsx';
 import { LIGHT_EXERCISES, EXERCISE_DIRECTORY } from './exerciseDirectory.ts';
 import { 
   Play, 
@@ -16,6 +17,7 @@ import {
   Heart,
   Dices,
   Search,
+  Scan,
   Plus,
   Check,
   ArrowLeft,
@@ -55,6 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [showSplitLab, setShowSplitLab] = useState(false);
   const [showReschedulePicker, setShowReschedulePicker] = useState<{ date: string; workout: WorkoutDay } | null>(null);
+  const [showBioScan, setShowBioScan] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recoverySelection, setRecoverySelection] = useState<any[]>([]);
@@ -64,9 +67,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
 
   useEffect(() => {
     if (onToggleNav) {
-      onToggleNav(!(showRecoveryLab || showManualPicker || showSplitLab || !!showReschedulePicker || !!selectedDate));
+      onToggleNav(!(showRecoveryLab || showManualPicker || showSplitLab || !!showReschedulePicker || !!selectedDate || showBioScan));
     }
-  }, [showRecoveryLab, showManualPicker, showSplitLab, showReschedulePicker, selectedDate, onToggleNav]);
+  }, [showRecoveryLab, showManualPicker, showSplitLab, showReschedulePicker, selectedDate, showBioScan, onToggleNav]);
 
   const categories = useMemo(() => {
     const cats = new Set(mergedDirectory.map(ex => ex.category));
@@ -418,6 +421,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
           <h1 className="text-3xl font-bold gold-text uppercase leading-tight tracking-tight">Hello {state.profile?.name?.split(' ')[0] || 'GUEST'}</h1>
         </div>
         <div className="flex flex-col items-end">
+          <button 
+            onClick={() => setShowBioScan(true)}
+            className="mb-4 p-2 bg-gold/10 border border-gold/20 rounded-lg text-gold hover:bg-gold/20 transition-all flex items-center gap-2"
+          >
+            <Scan size={14} className="animate-pulse" />
+            <span className="text-[8px] font-black uppercase tracking-widest">Bio-Scan</span>
+          </button>
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-black text-gold uppercase tracking-widest">RANK {rank}</span>
             <div className="text-4xl font-bold gold-text leading-none">{score}</div>
@@ -693,6 +703,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
       </section>
       
       {renderDailyRecord()}
+      {showBioScan && <BiologicalScan onClose={() => setShowBioScan(false)} />}
     </div>
   );
 };

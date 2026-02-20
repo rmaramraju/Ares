@@ -1,8 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { UserProfile } from "./types";
 
 export const generateFitnessPlan = async (profile: UserProfile) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const prompt = `Act as an elite sports scientist and nutritionist. Architect a scientifically-optimized fitness and nutrition protocol for a ${profile.age}y/o ${profile.gender} ${profile.bodyType}.
     PRIMARY GOAL: ${profile.goal}.
@@ -21,11 +21,11 @@ export const generateFitnessPlan = async (profile: UserProfile) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 32768 }, // High reasoning for specialized protocols
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -83,5 +83,40 @@ export const generateFitnessPlan = async (profile: UserProfile) => {
   } catch (error) {
     console.error("ARES_API_ERR: Protocol Synthesis Failed", error);
     throw new Error("SYSTEM_ERR: FAILED_TO_SYNTHESIZE_PROTOCOL");
+  }
+};
+
+export const analyzePhysique = async (base64Image: string) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+  const prompt = `Act as an elite sports scientist and body composition expert. 
+    Analyze this athlete's physique from the provided image.
+    Provide a detailed assessment including:
+    1. Muscle definition and vascularity assessment.
+    2. Estimated body fat percentage range.
+    3. Structural symmetry observations.
+    4. Recommended focus areas for the next training block.
+    
+    Format the response in professional, technical Markdown with clear headings. 
+    Be encouraging but scientifically objective. Use terms like 'hypertrophy', 'posterior chain', 'definition', 'composition'.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", 
+      contents: [
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: base64Image
+          }
+        },
+        { text: prompt }
+      ]
+    });
+
+    return response.text || "ARES_SYSTEM: Analysis data corrupted or unavailable.";
+  } catch (error) {
+    console.error("ARES_API_ERR: Physique Analysis Failed", error);
+    return "SYSTEM_ERR: BIOMETRIC_SCAN_FAILED. Check neural link and retry.";
   }
 };
