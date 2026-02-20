@@ -290,12 +290,12 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
            const weekVelocity = (lastWeekEnd - lastWeekStart);
            const isAccelerating = (diff > 0 && weekVelocity > vel) || (diff < 0 && weekVelocity < vel);
            etaShiftLabel = isAccelerating ? "ACCELERATING" : "RECEDING";
-           etaShiftColor = isAccelerating ? "text-green-500" : "text-red-500";
+           etaShiftColor = isAccelerating ? "text-gold" : "text-zinc-500";
         }
       } else {
         etaString = "Diverging Path";
         etaShiftLabel = "DIVERGING";
-        etaShiftColor = "text-red-900";
+        etaShiftColor = "text-zinc-800";
       }
     }
 
@@ -375,8 +375,30 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     const readiness = lastMetric?.readiness || 85;
     const sleepTrend = filteredMetrics.map(m => m.sleepHours || 7.5);
     const hrvTrend = filteredMetrics.map(m => m.hrv || 65);
+    const rhrTrend = filteredMetrics.map(m => m.rhr || 52);
+    const efficiencyTrend = filteredMetrics.map(m => m.sleepEfficiency || 92);
+    
+    const sleepStages = lastMetric?.sleepStages || { light: 240, deep: 90, rem: 110, awake: 20 };
+    const timeInBed = lastMetric?.timeInBed || (lastMetric?.sleepHours ? lastMetric.sleepHours + 0.5 : 8.0);
+    const efficiency = lastMetric?.sleepEfficiency || (lastMetric?.sleepHours && timeInBed ? (lastMetric.sleepHours / timeInBed) * 100 : 92);
+    
+    const bedtime = lastMetric?.bedtime || "22:45";
+    const wakeTime = lastMetric?.wakeTime || "06:30";
+    
     const dates = filteredMetrics.map(m => m.date.split('-')[2]);
-    return { readiness, sleepTrend, hrvTrend, dates };
+    return { 
+      readiness, 
+      sleepTrend, 
+      hrvTrend, 
+      rhrTrend, 
+      efficiencyTrend,
+      sleepStages,
+      timeInBed,
+      efficiency,
+      bedtime,
+      wakeTime,
+      dates 
+    };
   }, [filteredMetrics]);
 
   const handleRangeSelect = (type: RangeType) => {
@@ -476,7 +498,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                             <h4 className="text-lg font-bold text-white uppercase tracking-tight">{(oracleData.predictedVol/1000).toFixed(1)}k <span className="text-[10px] text-zinc-600">KG·REPS</span></h4>
                          </div>
                       </div>
-                      <TrendingUp size={16} className="text-green-500 opacity-40" />
+                      <TrendingUp size={16} className="text-gold opacity-40" />
                    </div>
                 </div>
              </Card>
@@ -569,7 +591,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
              <div className="grid grid-cols-2 gap-4">
                 <Card className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-2 text-center hover:bg-white/[0.04] transition-all">
                    <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Load Velocity</p>
-                   <p className={`text-xl font-bold ${trainingData.overloadVelocity[trainingData.overloadVelocity.length-1] > 0 ? 'text-green-500' : 'text-zinc-400'}`}>
+                   <p className={`text-xl font-bold ${trainingData.overloadVelocity[trainingData.overloadVelocity.length-1] > 0 ? 'text-gold' : 'text-zinc-400'}`}>
                       {trainingData.overloadVelocity[trainingData.overloadVelocity.length-1] > 0 ? '+' : ''}{trainingData.overloadVelocity[trainingData.overloadVelocity.length-1]?.toFixed(1) || '0'}%
                    </p>
                 </Card>
@@ -590,7 +612,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">Overload Trajectory (%)</p>
                    <SimpleBarChart 
                       data={trainingData.overloadVelocity} 
-                      color="rgba(34, 197, 94, 0.4)" 
+                      color="rgba(197, 160, 89, 0.4)" 
                       labels={trainingData.dates} 
                    />
                 </Card>
@@ -622,7 +644,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                 </Card>
                 <Card className="p-6 border-white/5 bg-zinc-900/40 text-center space-y-2 hover:bg-white/[0.04] transition-all">
                    <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Velocity</p>
-                   <p className={`text-lg font-bold ${weightData.velocity > 0 ? 'text-green-500' : 'text-blue-400'}`}>
+                   <p className={`text-lg font-bold ${weightData.velocity > 0 ? 'text-gold' : 'text-zinc-500'}`}>
                       {weightData.velocity > 0 ? '+' : ''}{weightData.velocity.toFixed(2)}
                    </p>
                 </Card>
@@ -684,28 +706,140 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                     <h3 className="text-[10px] font-bold text-gold uppercase tracking-[0.4em]">Recovery Diagnostic</h3>
                     <p className="text-xs text-zinc-500 font-light">Parasympathetic baseline and neural readiness architecture.</p>
                  </header>
+
+                 {/* Readiness Score */}
                  <Card className="p-10 border-white/5 bg-[#080809] flex flex-col items-center gap-6 text-center hover:bg-white/[0.01] transition-all">
                     <div className="relative w-48 h-48 flex items-center justify-center">
                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                          <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth="8" />
-                          <circle cx="50" cy="50" r="45" fill="none" stroke="#3b82f6" strokeWidth="8" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * (recoveryStats.readiness) / 100)} className="transition-all duration-1000" />
+                          <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(212,175,55,0.1)" strokeWidth="8" />
+                          <circle cx="50" cy="50" r="45" fill="none" stroke="#D4AF37" strokeWidth="8" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * (recoveryStats.readiness) / 100)} className="transition-all duration-1000" />
                        </svg>
                        <div className="absolute inset-0 flex flex-col items-center justify-center">
                           <span className="text-5xl font-black tabular-nums">{recoveryStats.readiness}</span>
-                          <span className="text-[8px] font-black uppercase tracking-[0.4em] text-blue-400">READY</span>
+                          <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold">READY</span>
                        </div>
                     </div>
                  </Card>
+
+                 {/* Primary Sleep Metrics */}
                  <div className="grid grid-cols-2 gap-4">
-                   <Card className="p-8 border-white/5 bg-zinc-900/40 hover:bg-white/[0.04] transition-all">
-                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">Sleep (HRS)</p>
-                      <SimpleBarChart data={recoveryStats.sleepTrend} color="#3b82f6" labels={recoveryStats.dates} />
-                   </Card>
-                   <Card className="p-8 border-white/5 bg-zinc-900/40 hover:bg-white/[0.04] transition-all">
-                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">HRV (MS)</p>
-                      <SimpleLineChart data={recoveryStats.hrvTrend} color="#3b82f6" labels={recoveryStats.dates} />
-                   </Card>
+                    <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-4">
+                       <div className="flex items-center gap-3">
+                          <Clock size={14} className="text-gold" />
+                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Total Sleep</p>
+                       </div>
+                       <p className="text-2xl font-black tabular-nums">{recoveryStats.sleepTrend[recoveryStats.sleepTrend.length-1]?.toFixed(1)} <span className="text-[10px] text-zinc-700">HRS</span></p>
+                    </Card>
+                    <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-4">
+                       <div className="flex items-center gap-3">
+                          <Moon size={14} className="text-zinc-500" />
+                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Time in Bed</p>
+                       </div>
+                       <p className="text-2xl font-black tabular-nums">{recoveryStats.timeInBed.toFixed(1)} <span className="text-[10px] text-zinc-700">HRS</span></p>
+                    </Card>
                  </div>
+
+                 {/* Sleep Efficiency & Stages */}
+                 <section className="space-y-6">
+                    <div className="flex justify-between items-center px-2">
+                       <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Sleep Architecture</h3>
+                       <Layers size={14} className="text-gold opacity-40" />
+                    </div>
+                    <Card className="p-8 border-white/5 bg-zinc-950/50 space-y-8">
+                       <div className="flex justify-between items-end">
+                          <div>
+                             <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mb-1">Efficiency</p>
+                             <h5 className="text-xl font-black text-white">{Math.round(recoveryStats.efficiency)}%</h5>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mb-1">Consistency</p>
+                             <h5 className="text-xl font-black text-gold">HIGH</h5>
+                          </div>
+                       </div>
+                       
+                       {/* Stages Bar */}
+                       <div className="space-y-4">
+                          <div className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden flex">
+                             <div className="h-full bg-gold" style={{ width: `${(recoveryStats.sleepStages.deep / (recoveryStats.timeInBed * 60)) * 100}%` }} />
+                             <div className="h-full bg-zinc-400" style={{ width: `${(recoveryStats.sleepStages.rem / (recoveryStats.timeInBed * 60)) * 100}%` }} />
+                             <div className="h-full bg-zinc-600" style={{ width: `${(recoveryStats.sleepStages.light / (recoveryStats.timeInBed * 60)) * 100}%` }} />
+                             <div className="h-full bg-zinc-800" style={{ width: `${(recoveryStats.sleepStages.awake / (recoveryStats.timeInBed * 60)) * 100}%` }} />
+                          </div>
+                          <div className="grid grid-cols-4 gap-2">
+                             {[
+                               { l: 'Deep', v: recoveryStats.sleepStages.deep, c: 'bg-gold' },
+                               { l: 'REM', v: recoveryStats.sleepStages.rem, c: 'bg-zinc-400' },
+                               { l: 'Light', v: recoveryStats.sleepStages.light, c: 'bg-zinc-600' },
+                               { l: 'Awake', v: recoveryStats.sleepStages.awake, c: 'bg-zinc-800' }
+                             ].map(s => (
+                               <div key={s.l} className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1.5">
+                                     <div className={`w-1.5 h-1.5 rounded-full ${s.c}`} />
+                                     <span className="text-[7px] text-zinc-600 font-bold uppercase tracking-tighter">{s.l}</span>
+                                  </div>
+                                  <span className="text-[9px] font-bold tabular-nums">{Math.floor(s.v / 60)}h {s.v % 60}m</span>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+                    </Card>
+                 </section>
+
+                 {/* Physiological Markers */}
+                 <section className="space-y-6">
+                    <div className="flex justify-between items-center px-2">
+                       <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Physiological Markers</h3>
+                       <Activity size={14} className="text-gold opacity-40" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <Card className="p-8 border-white/5 bg-zinc-900/40 space-y-4">
+                          <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">HRV (MS)</p>
+                          <SimpleLineChart data={recoveryStats.hrvTrend} color="#D4AF37" labels={recoveryStats.dates} />
+                          <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                             <span className="text-[8px] text-zinc-700 font-black uppercase">Latest</span>
+                             <span className="text-xs font-bold text-gold">{recoveryStats.hrvTrend[recoveryStats.hrvTrend.length-1]} ms</span>
+                          </div>
+                       </Card>
+                       <Card className="p-8 border-white/5 bg-zinc-900/40 space-y-4">
+                          <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">RHR (BPM)</p>
+                          <SimpleLineChart data={recoveryStats.rhrTrend} color="#BF953F" labels={recoveryStats.dates} />
+                          <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                             <span className="text-[8px] text-zinc-700 font-black uppercase">Latest</span>
+                             <span className="text-xs font-bold text-zinc-300">{recoveryStats.rhrTrend[recoveryStats.rhrTrend.length-1]} bpm</span>
+                          </div>
+                       </Card>
+                    </div>
+                 </section>
+
+                 {/* Sleep Timing */}
+                 <section className="space-y-6">
+                    <div className="flex justify-between items-center px-2">
+                       <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Circadian Stability</h3>
+                       <Timer size={14} className="text-gold opacity-40" />
+                    </div>
+                    <Card className="p-8 border-white/5 bg-zinc-950/50 flex justify-between items-center">
+                       <div className="space-y-2">
+                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Avg Bedtime</p>
+                          <p className="text-xl font-black tabular-nums">{recoveryStats.bedtime}</p>
+                       </div>
+                       <div className="h-10 w-px bg-white/5" />
+                       <div className="space-y-2 text-right">
+                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Avg Wake Time</p>
+                          <p className="text-xl font-black tabular-nums">{recoveryStats.wakeTime}</p>
+                       </div>
+                    </Card>
+                 </section>
+
+                 {/* Efficiency Trend */}
+                 <section className="space-y-6">
+                    <div className="flex justify-between items-center px-2">
+                       <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Efficiency Trend</h3>
+                       <TrendingUp size={14} className="text-gold opacity-40" />
+                    </div>
+                    <Card className="p-10 border-white/5 bg-[#080809] hover:bg-white/[0.02] transition-all">
+                       <SimpleLineChart data={recoveryStats.efficiencyTrend} color="#D4AF37" labels={recoveryStats.dates} />
+                    </Card>
+                 </section>
                </>
              )}
           </div>

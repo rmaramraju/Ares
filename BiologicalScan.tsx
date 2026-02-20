@@ -178,8 +178,8 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
         {analysisResult && (
           <div className="w-full max-w-md bg-zinc-950/50 border border-white/5 rounded-[40px] p-8 overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-700 max-h-[70vh]">
             <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-green-500/10 rounded-xl border border-green-500/20">
-                <ShieldCheck size={20} className="text-green-500" />
+              <div className="p-3 bg-gold/10 rounded-xl border border-gold/20">
+                <ShieldCheck size={20} className="text-gold" />
               </div>
               <div>
                 <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Analysis Verified</p>
@@ -202,11 +202,11 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
 
         {error && (
           <div className="text-center space-y-6 animate-in zoom-in-95 duration-500">
-            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
-              <X size={32} className="text-red-500" />
+            <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto border border-gold/20">
+              <X size={32} className="text-gold" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-bold uppercase text-red-500 tracking-widest">System Error</h3>
+              <h3 className="text-lg font-bold uppercase text-gold tracking-widest">System Error</h3>
               <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest px-12">{error}</p>
               <p className="text-[8px] text-zinc-700 uppercase tracking-widest mt-2">Try uploading a photo instead</p>
             </div>

@@ -87,14 +87,30 @@ const App: React.FC = () => {
     const vScore = Math.min(50, (totalVolume / volumeTarget) * 50);
     const pScore = Math.min(50, (totalProtein / proteinTarget) * 50);
 
-    let recoveryData = { hrv: undefined, readiness: undefined, sleepHours: undefined };
+    let recoveryData = { 
+      hrv: undefined as number | undefined, 
+      readiness: undefined as number | undefined, 
+      sleepHours: undefined as number | undefined,
+      timeInBed: undefined as number | undefined,
+      sleepEfficiency: undefined as number | undefined,
+      rhr: undefined as number | undefined,
+      sleepStages: undefined as { light: number; deep: number; rem: number; awake: number } | undefined,
+      bedtime: undefined as string | undefined,
+      wakeTime: undefined as string | undefined
+    };
     if (state.connectedWearables.length > 0) {
       const telemetry = await WearableService.fetchFromProvider(state.connectedWearables[0]);
       if (telemetry) {
         recoveryData = {
           hrv: telemetry.hrv,
           readiness: telemetry.readiness,
-          sleepHours: telemetry.sleepHours
+          sleepHours: telemetry.sleepHours,
+          timeInBed: telemetry.timeInBed,
+          sleepEfficiency: telemetry.sleepEfficiency,
+          rhr: telemetry.rhr,
+          sleepStages: telemetry.sleepStages,
+          bedtime: telemetry.bedtime,
+          wakeTime: telemetry.wakeTime
         };
       }
     }
@@ -390,6 +406,7 @@ const App: React.FC = () => {
             }} 
             onToggleWearable={handleWearableToggle} 
             onAddCustomExercise={handleAddCustomExercise}
+            onToggleNav={setIsNavVisible}
           />
         )}
         {state.currentView === 'confirm_plan' && (

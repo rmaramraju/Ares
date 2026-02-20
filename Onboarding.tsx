@@ -121,7 +121,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               <div className="space-y-4 stagger-1">
                 <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Athlete Designation</label>
                 <input 
-                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.name?.trim() ? 'border-red-500/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-[#C5A059] placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`}
+                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.name?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-[#C5A059] placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`}
                   placeholder="SUBJECT_NAME"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
@@ -238,7 +238,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             <div className="space-y-12 reveal">
               <div className="space-y-4 stagger-1">
                 <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Nutritional Preferences</label>
-                <input className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.cuisinePreference?.trim() ? 'border-red-500/30' : 'border-white/5'} rounded-2xl text-sm outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`} placeholder="E.G. CLEAN MODERN" value={formData.cuisinePreference} onChange={e => setFormData({...formData, cuisinePreference: e.target.value})} />
+                <input className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.cuisinePreference?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`} placeholder="E.G. CLEAN MODERN" value={formData.cuisinePreference} onChange={e => setFormData({...formData, cuisinePreference: e.target.value})} />
               </div>
               <div className="p-8 rounded-[40px] border border-white/5 bg-zinc-900 flex items-start gap-6 stagger-2">
                 <Dumbbell className="text-[#C5A059] opacity-40 mt-1" size={24} strokeWidth={1.5} />

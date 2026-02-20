@@ -204,7 +204,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
             </div>
           )}
 
-          <div className={`w-full posh-card p-10 rounded-[48px] space-y-10 transition-all ${errorVisible ? 'animate-shake border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : 'border-white/5'}`}>
+          <div className={`w-full posh-card p-10 rounded-[48px] space-y-10 transition-all ${errorVisible ? 'animate-shake border-gold/50 shadow-[0_0_20px_rgba(197,160,89,0.1)]' : 'border-white/5'}`}>
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] ml-2">Email Identity</label>
@@ -216,7 +216,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                     placeholder="PROTOCOL@ARES.IO" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full p-5 pl-12 rounded-2xl bg-zinc-900 border ${errorVisible && !email.trim() ? 'border-red-500/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-wider uppercase text-xs transition-all disabled:opacity-50`}
+                    className={`w-full p-5 pl-12 rounded-2xl bg-zinc-900 border ${errorVisible && !email.trim() ? 'border-gold/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-wider uppercase text-xs transition-all disabled:opacity-50`}
                   />
                 </div>
               </div>
@@ -230,15 +230,15 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                     placeholder="••••••••" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full p-5 rounded-2xl bg-zinc-900 border ${errorVisible && !password.trim() ? 'border-red-500/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-widest text-xs transition-all disabled:opacity-50`}
+                    className={`w-full p-5 rounded-2xl bg-zinc-900 border ${errorVisible && !password.trim() ? 'border-gold/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-widest text-xs transition-all disabled:opacity-50`}
                   />
                 </div>
               )}
 
               {errorMessage && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-red-500/5 border border-red-500/20 rounded-xl animate-in slide-in-from-top-2 duration-300">
-                  <AlertCircle size={14} className="text-red-500 shrink-0" />
-                  <p className="font-mono text-[9px] font-bold text-red-500 uppercase tracking-widest leading-relaxed">
+                <div className="flex items-center gap-3 px-4 py-3 bg-gold/5 border border-gold/20 rounded-xl animate-in slide-in-from-top-2 duration-300">
+                  <AlertCircle size={14} className="text-gold shrink-0" />
+                  <p className="font-mono text-[9px] font-bold text-gold uppercase tracking-widest leading-relaxed">
                     {errorMessage}
                   </p>
                 </div>

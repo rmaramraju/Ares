@@ -167,15 +167,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     if (status === 'full') {
       classes += "bg-[#C5A059] text-black shadow-[0_0_15px_rgba(197,160,89,0.3)] hover:brightness-110 ";
     } else if (status === 'rest') {
-      classes += "bg-blue-500/20 text-blue-400 border border-blue-500/10 hover:bg-blue-500/40 hover:border-blue-500/30 ";
+      classes += "bg-zinc-900/40 text-zinc-400 border border-white/5 hover:bg-zinc-800 hover:text-zinc-300 ";
     } else if (isRescheduledDay) {
-      classes += "bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 border-dashed hover:bg-indigo-500/40 hover:border-indigo-500 ";
+      classes += "bg-gold/10 text-gold border border-gold/40 border-dashed hover:bg-gold/20 hover:border-gold ";
     } else if (status === 'missed' || (!status && dateStr < todayStr && isWorkoutDay)) {
-      classes += "bg-red-500/10 text-red-500 border border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:bg-red-500/30 hover:border-red-500 ";
+      classes += "bg-zinc-900/60 text-zinc-500 border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:bg-zinc-800 hover:border-zinc-400 ";
     } else if (!isWorkoutDay) {
-      classes += "bg-zinc-900 text-zinc-600 border border-white/[0.03] hover:bg-zinc-800 hover:text-zinc-400 ";
+      classes += "bg-zinc-950 text-zinc-800 border border-white/[0.02] hover:bg-zinc-900 hover:text-zinc-600 ";
     } else {
-      classes += "bg-white/[0.02] text-zinc-400 border border-white/[0.02] hover:bg-white/10 hover:border-white/40 ";
+      classes += "bg-white/[0.02] text-zinc-600 border border-white/[0.02] hover:bg-white/10 hover:border-white/40 ";
     }
 
     if (isToday) {
@@ -301,7 +301,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     return (
       <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-2xl flex items-end sm:items-center justify-center animate-in fade-in duration-300">
         <div className="absolute inset-0" onClick={() => setSelectedDate(null)} />
-        <div className="relative w-full max-w-md bg-surface border-t sm:border border-white/10 rounded-t-[48px] sm:rounded-[48px] p-10 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="relative w-full max-w-md bg-[#0c0c0e] border-t border-[#D4AF37] sm:border-x sm:border-b sm:border-white/10 rounded-t-[48px] sm:rounded-[48px] p-10 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
           <header className="flex justify-between items-start mb-12">
             <div className="space-y-2">
               <p className="text-[10px] font-bold text-gold uppercase tracking-[0.5em]">Protocol Summary</p>
@@ -314,7 +314,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
              <div className="grid grid-cols-2 gap-4">
                 <Card className="p-6 bg-white/[0.02] border-white/5 text-center hover:bg-white/5 hover:border-white/20 transition-all">
                    <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mb-2">Workout Status</p>
-                   <p className={`text-[10px] font-black uppercase ${dayHistory ? 'text-green-500' : (rescheduled ? 'text-indigo-400' : 'text-zinc-500')}`}>
+                   <p className={`text-[10px] font-black uppercase ${dayHistory ? 'text-gold' : (rescheduled ? 'text-gold/60' : 'text-zinc-500')}`}>
                       {dayHistory ? 'COMPLETE' : (rescheduled ? 'RESCHEDULED HERE' : (status === 'rest' ? 'OVERRIDE REST' : (isScheduledWorkday ? 'MISSED' : 'AUTO REST')))}
                    </p>
                 </Card>
@@ -327,10 +327,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
              </div>
 
              {rescheduled && (
-               <Card className="p-8 border-indigo-500/20 bg-indigo-500/5 space-y-4 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition-all">
+               <Card className="p-8 border-gold/20 bg-gold/5 space-y-4 hover:bg-gold/10 hover:border-gold/40 transition-all">
                   <div className="flex items-center gap-3">
-                    <RefreshCcw size={16} className="text-indigo-400" />
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Shifted Module</h4>
+                    <RefreshCcw size={16} className="text-gold" />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gold">Shifted Module</h4>
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
@@ -338,7 +338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                       <p className="text-xs font-bold uppercase">{rescheduled.focus}</p>
                     </div>
                     {isToday && (
-                      <button onClick={() => tryStartWorkout(rescheduled)} className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 active:scale-95 transition-all">Deploy Now</button>
+                      <button onClick={() => tryStartWorkout(rescheduled)} className="px-4 py-2 bg-gold text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gold/90 active:scale-95 transition-all">Deploy Now</button>
                     )}
                   </div>
                </Card>
@@ -366,7 +366,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                     <div>
                        <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Rating</p>
                        <div className="flex items-center gap-1">
-                          <CheckCircle size={12} className="text-green-500" />
+                          <CheckCircle size={12} className="text-gold" />
                           <p className="text-xs font-bold uppercase">Rank A</p>
                        </div>
                     </div>
@@ -390,7 +390,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                    </div>
                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center hover:bg-white/10 hover:border-white/30 transition-all cursor-default">
                       <p className="text-[7px] font-black text-zinc-700 uppercase mb-1">FBR</p>
-                      <p className="text-[10px] font-bold text-green-500 tabular-nums">{dailyFiber}G</p>
+                      <p className="text-[10px] font-bold text-gold tabular-nums">{dailyFiber}G</p>
                    </div>
                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center hover:bg-white/10 hover:border-white/30 transition-all cursor-default">
                       <p className="text-[7px] font-black text-zinc-700 uppercase mb-1">Score</p>
@@ -437,19 +437,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
       </header>
 
       {launchError && (
-        <div className="w-full bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top">
-          <AlertCircle size={16} className="text-red-500" />
-          <p className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-relaxed">{launchError}</p>
+        <div className="w-full bg-zinc-900/50 border border-gold/20 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top">
+          <AlertCircle size={16} className="text-gold" />
+          <p className="text-[9px] font-black text-gold uppercase tracking-widest leading-relaxed">{launchError}</p>
         </div>
       )}
 
       {missedWorkouts.length > 0 && (
-        <Card className="w-full bg-red-500/10 border-red-500/20 p-8 flex flex-col gap-6 animate-in slide-in-from-top duration-500 hover:bg-red-500/20 hover:border-red-500 transition-all">
+        <Card className="w-full bg-zinc-900/40 border-white/10 p-8 flex flex-col gap-6 animate-in slide-in-from-top duration-500 hover:bg-zinc-900/60 hover:border-gold/40 transition-all">
            <div className="flex items-center justify-between">
               <div className="flex items-center gap-5">
-                 <AlertTriangle className="text-red-500" size={24} />
+                 <AlertTriangle className="text-gold opacity-60" size={24} />
                  <div>
-                    <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Incomplete Deployment</p>
+                    <p className="text-[10px] text-gold font-bold uppercase tracking-widest">Incomplete Deployment</p>
                     <p className="text-[8px] text-zinc-500 uppercase font-bold tracking-widest mt-1">PROTOCOL MISSED: {missedWorkouts[0].date}</p>
                  </div>
               </div>
@@ -457,7 +457,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
            <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => tryStartWorkout(missedWorkouts[0].workout)} 
-                className="flex-1 px-5 py-4 bg-red-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-red-600 active:scale-95 transition-all"
+                className="flex-1 px-5 py-4 bg-gold text-black rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-gold/90 active:scale-95 transition-all"
               >
                 <RefreshCcw size={14} /> REDEPLOY: {missedWorkouts[0].workout?.focus || 'MISS'}
               </button>
@@ -476,13 +476,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
 
       <section className="w-full">
         {!todayWorkout ? (
-          <Card className="relative overflow-hidden p-12 bg-zinc-950 border-white/5 border group hover:border-blue-500/50 hover:bg-blue-500/[0.02]">
+          <Card className="relative overflow-hidden p-12 bg-zinc-950 border-white/5 border group hover:border-gold/50 hover:bg-white/[0.02]">
             <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.1] transition-opacity duration-500"><Heart size={200} /></div>
             <div className="relative z-10 space-y-10">
                <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.5em]">Recovery Mode</p>
+                    <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                    <p className="text-[10px] font-bold text-gold uppercase tracking-[0.5em]">Recovery Mode</p>
                   </div>
                   <h2 className="text-4xl font-semibold tracking-tight uppercase leading-none">Today is a rest day.</h2>
                   <p className="text-xs text-zinc-500 font-light leading-relaxed max-w-[85%]">Biological repair window active. Protocol shifted to structural maintenance.</p>
@@ -502,14 +502,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
             </div>
           </Card>
         ) : (
-          <Card onClick={() => tryStartWorkout(todayWorkout)} className={`relative overflow-hidden p-12 group cursor-pointer active:scale-95 transition-all ${rescheduledWorkoutToday ? 'bg-indigo-950/20 border-indigo-500/40 ring-1 ring-indigo-500/10 hover:border-indigo-500 hover:bg-indigo-950/40' : 'bg-surface border-white/5 hover:border-gold-solid hover:bg-white/[0.04]'}`}>
-            <div className="absolute top-0 right-0 p-8 opacity-[0.05] group-hover:opacity-[0.15] transition-opacity duration-500"><Target size={180} className={rescheduledWorkoutToday ? 'text-indigo-400' : 'gold-text'} /></div>
+          <Card onClick={() => tryStartWorkout(todayWorkout)} className={`relative overflow-hidden p-12 group cursor-pointer active:scale-95 transition-all ${rescheduledWorkoutToday ? 'bg-gold/10 border-gold/40 ring-1 ring-gold/10 hover:border-gold hover:bg-gold/20' : 'bg-surface border-white/5 hover:border-gold-solid hover:bg-white/[0.04]'}`}>
+            <div className="absolute top-0 right-0 p-8 opacity-[0.05] group-hover:opacity-[0.15] transition-opacity duration-500"><Target size={180} className={rescheduledWorkoutToday ? 'text-gold' : 'gold-text'} /></div>
             <div className="relative z-10 space-y-10">
               <div className="flex justify-between items-start">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${rescheduledWorkoutToday ? 'bg-indigo-400' : 'gold-bg'}`} />
-                    <p className={`text-[10px] font-bold uppercase tracking-[0.5em] ${rescheduledWorkoutToday ? 'text-indigo-400' : 'gold-text'}`}>
+                    <div className={`w-2 h-2 rounded-full animate-pulse ${rescheduledWorkoutToday ? 'bg-gold' : 'gold-bg'}`} />
+                    <p className={`text-[10px] font-bold uppercase tracking-[0.5em] ${rescheduledWorkoutToday ? 'text-gold' : 'gold-text'}`}>
                       {rescheduledWorkoutToday ? 'Shifted Deployment' : 'Active Deployment'}
                     </p>
                   </div>
@@ -519,7 +519,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
               </div>
               <div className="flex items-center justify-between pt-8 border-t border-white/5">
                 <div className="flex items-center gap-6">
-                   <div className={`w-16 h-16 rounded-full flex items-center justify-center text-black shadow-2xl group-hover:scale-110 transition-transform ${rescheduledWorkoutToday ? 'bg-indigo-400 shadow-indigo-500/30' : 'gold-bg shadow-gold/30'}`}>
+                   <div className={`w-16 h-16 rounded-full flex items-center justify-center text-black shadow-2xl group-hover:scale-110 transition-transform ${rescheduledWorkoutToday ? 'bg-gold shadow-gold/30' : 'gold-bg shadow-gold/30'}`}>
                       <Play fill="currentColor" size={24} className="ml-1" />
                    </div>
                    <span className={`text-[12px] font-bold tracking-[0.5em] text-zinc-500 group-hover:text-white transition-colors uppercase`}>Initiate Session</span>
@@ -552,10 +552,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                            <ArrowRight size={16} className="text-zinc-800 group-hover:text-gold transition-all group-hover:translate-x-1" />
                         </Card>
                      )) : (
-                        <div className="p-10 border border-dashed border-red-900/20 rounded-[32px] text-center bg-red-950/5">
-                           <AlertCircle size={24} className="text-red-900 mx-auto mb-4" />
-                           <p className="text-[10px] text-red-900 font-bold uppercase tracking-widest">No available rest windows remaining this week.</p>
-                           <p className="text-[8px] text-zinc-700 uppercase tracking-widest mt-2">Deploy now or mark as failed phase.</p>
+                        <div className="p-10 border border-dashed border-white/10 rounded-[32px] text-center bg-zinc-900/20">
+                           <AlertCircle size={24} className="text-zinc-700 mx-auto mb-4" />
+                           <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">No available rest windows remaining this week.</p>
+                           <p className="text-[8px] text-zinc-800 uppercase tracking-widest mt-2">Deploy now or mark as failed phase.</p>
                         </div>
                      )}
                   </div>

@@ -151,6 +151,12 @@ export interface DailyMetric {
   hrv?: number;
   readiness?: number;
   sleepHours?: number;
+  timeInBed?: number;
+  sleepEfficiency?: number;
+  rhr?: number;
+  sleepStages?: { light: number; deep: number; rem: number; awake: number };
+  bedtime?: string;
+  wakeTime?: string;
 }
 
 export interface AppState {

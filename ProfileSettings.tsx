@@ -52,19 +52,20 @@ interface ProfileSettingsProps {
   onLogWeight: (weight: number) => void;
   onToggleWearable: (id: string) => void;
   onAddCustomExercise: (ex: ExerciseMetadata) => void;
+  onToggleNav?: (visible: boolean) => void;
 }
 
 const INTEGRATION_PROVIDERS = [
   { id: 'apple', name: 'Apple Health', icon: Watch, color: 'text-white' },
-  { id: 'garmin', name: 'Garmin Connect', icon: Cpu, color: 'text-blue-500' },
+  { id: 'garmin', name: 'Garmin Connect', icon: Cpu, color: 'text-zinc-400' },
   { id: 'whoop', name: 'Whoop', icon: ShieldCheck, color: 'text-zinc-400' },
-  { id: 'oura', name: 'Oura Ring', icon: SmartphoneNfc, color: 'text-purple-400' },
+  { id: 'oura', name: 'Oura Ring', icon: SmartphoneNfc, color: 'text-zinc-400' },
   { id: 'ultrahuman', name: 'Ultrahuman', icon: Zap, color: 'text-gold' }
 ];
 
 const MUSCLE_LIST: MuscleGroup[] = ['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'];
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onToggleNav }) => {
   const profile = state.profile;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -112,6 +113,12 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
   useEffect(() => {
     checkPermissions();
   }, []);
+
+  useEffect(() => {
+    if (onToggleNav) {
+      onToggleNav(!(showIdentityEditor || showEncyclopedia || showAddCustom || !!showEditMetric || showTerminationConfirm));
+    }
+  }, [showIdentityEditor, showEncyclopedia, showAddCustom, showEditMetric, showTerminationConfirm, onToggleNav]);
 
   const categories = useMemo(() => {
     const cats = new Set(mergedDirectory.map(ex => ex.category));
@@ -331,14 +338,14 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
         </div>
         <div className="grid grid-cols-2 gap-4">
           <Card onClick={requestCameraPermission} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
-            <Camera size={18} className={cameraStatus === 'granted' ? 'text-green-500' : 'text-zinc-500'} />
+            <Camera size={18} className={cameraStatus === 'granted' ? 'text-gold' : 'text-zinc-500'} />
             <div className="text-center">
               <p className="text-[10px] font-black uppercase tracking-widest">{cameraStatus === 'granted' ? 'AUTHORIZED' : 'CAMERA'}</p>
               <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">{cameraStatus === 'granted' ? 'Active' : 'Request Access'}</p>
             </div>
           </Card>
           <Card onClick={requestNotificationPermission} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
-            <Bell size={18} className={notificationStatus === 'granted' ? 'text-green-500' : 'text-zinc-500'} />
+            <Bell size={18} className={notificationStatus === 'granted' ? 'text-gold' : 'text-zinc-500'} />
             <div className="text-center">
               <p className="text-[10px] font-black uppercase tracking-widest">{notificationStatus === 'granted' ? 'AUTHORIZED' : 'NOTIFICATIONS'}</p>
               <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">{notificationStatus === 'granted' ? 'Active' : 'Request Access'}</p>
@@ -380,17 +387,17 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">System Authority</h3>
            <Lock size={14} className="text-zinc-700" />
         </div>
-        <Card onClick={() => { HapticService.impactHeavy(); setShowTerminationConfirm(true); }} className="p-8 border-red-900/20 bg-red-950/5 flex items-center justify-between group hover:bg-red-900/10 hover:border-red-500 transition-all duration-500 tap-feedback">
+        <Card onClick={() => { HapticService.impactHeavy(); setShowTerminationConfirm(true); }} className="p-8 border-white/10 bg-zinc-900/40 flex items-center justify-between group hover:bg-zinc-800 hover:border-gold/40 transition-all duration-500 tap-feedback">
            <div className="flex items-center gap-6">
-              <div className="p-3 bg-red-500 text-white rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+              <div className="p-3 bg-zinc-800 text-gold rounded-2xl shadow-[0_0_15px_rgba(212,175,55,0.1)]">
                  <Power size={20} />
               </div>
               <div>
-                 <h4 className="text-sm font-black uppercase tracking-widest text-red-500">TERMINATE SESSION</h4>
-                 <p className="text-[8px] text-red-900 font-bold uppercase tracking-widest">Protocol Shutdown</p>
+                 <h4 className="text-sm font-black uppercase tracking-widest text-zinc-400 group-hover:text-gold transition-colors">TERMINATE SESSION</h4>
+                 <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Protocol Shutdown</p>
               </div>
            </div>
-           <LogOut size={16} className="text-red-900 group-hover:text-red-500 transition-colors" />
+           <LogOut size={16} className="text-zinc-700 group-hover:text-gold transition-colors" />
         </Card>
       </section>
 
@@ -592,17 +599,17 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
         <div className="fixed inset-0 z-[1000] bg-zinc-950/95 flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in duration-300">
           <div className="w-full max-w-sm space-y-12">
             <header className="text-center space-y-6">
-               <div className="w-24 h-24 rounded-full border-2 border-red-500/50 flex items-center justify-center mx-auto bg-red-500/10">
-                  <AlertTriangle size={48} className="text-red-500 animate-pulse" />
+               <div className="w-24 h-24 rounded-full border-2 border-gold/50 flex items-center justify-center mx-auto bg-gold/10">
+                  <AlertTriangle size={48} className="text-gold animate-pulse" />
                </div>
                <div className="space-y-2">
-                  <p className="text-[10px] text-red-500 font-bold uppercase tracking-[0.5em]">System Alert</p>
+                  <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">System Alert</p>
                   <h2 className="text-3xl font-light tracking-tight uppercase">Confirm Logout?</h2>
                   <p className="text-xs text-zinc-500 leading-relaxed uppercase tracking-tighter px-4 text-center">ARES PROTOCOL WILL DEAUTHORIZE ALL ACTIVE TELEMETRY. THE FORGE GROWS COLD.</p>
                </div>
             </header>
             <div className="space-y-4">
-              <button onClick={onLogout} className="w-full py-7 rounded-[32px] bg-red-500 text-white font-black uppercase tracking-[0.5em] text-[11px] shadow-[0_0_40px_rgba(239,68,68,0.2)] active:scale-95 transition-all tap-feedback">Deauthorize</button>
+              <button onClick={onLogout} className="w-full py-7 rounded-[32px] bg-zinc-900 border border-white/10 text-gold font-black uppercase tracking-[0.5em] text-[11px] shadow-2xl active:scale-95 transition-all tap-feedback">Deauthorize</button>
               <button onClick={() => { HapticService.impactLight(); setShowTerminationConfirm(false); }} className="w-full py-5 text-zinc-600 font-bold uppercase tracking-widest text-[9px] hover:text-white transition-colors tap-feedback">Abort</button>
             </div>
           </div>

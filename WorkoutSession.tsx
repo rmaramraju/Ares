@@ -145,7 +145,7 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
 
         <div className="flex-1 overflow-y-auto px-6 py-10 space-y-8 no-scrollbar">
           <div className="text-center space-y-6">
-              <div className={`w-full aspect-video rounded-[32px] overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl relative ${isCardio ? 'ring-1 ring-blue-500/20' : ''}`}>
+              <div className={`w-full aspect-video rounded-[32px] overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl relative ${isCardio ? 'ring-1 ring-gold/20' : ''}`}>
                  {currentExercise.metadata?.youtubeId && showVideo ? (
                     <iframe 
                       className="w-full h-full"
@@ -183,8 +183,8 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
               
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-3">
-                  {isCardio && <Wind className="text-blue-400" size={16} />}
-                  <h2 className={`text-4xl font-light tracking-tight text-white uppercase leading-tight ${isCardio ? 'text-blue-50' : ''}`}>{currentExercise.name}</h2>
+                  {isCardio && <Wind className="text-gold" size={16} />}
+                  <h2 className={`text-4xl font-light tracking-tight text-white uppercase leading-tight ${isCardio ? 'text-white' : ''}`}>{currentExercise.name}</h2>
                 </div>
                 <div className="flex items-center justify-center gap-8">
                     <div className="text-center">

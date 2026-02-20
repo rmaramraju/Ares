@@ -137,11 +137,11 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
                     <p className="text-[8px] font-black text-zinc-600 tracking-[0.2em] uppercase">{m.l}</p>
                     <Edit3 size={10} className="text-zinc-800 group-hover:text-gold transition-colors" />
                  </div>
-                 <p className={`text-lg font-black ${m.l === 'FBR' ? 'text-green-500' : 'gold-text'}`}>
+                 <p className={`text-lg font-black gold-text`}>
                     {m.v}<span className="text-[10px] text-zinc-600 font-bold tracking-tight lowercase mx-1">/</span>{m.t}<span className="text-[8px] text-zinc-700 ml-0.5">G</span>
                  </p>
                  <div className="w-full h-1 bg-zinc-900 rounded-full mt-3 overflow-hidden">
-                    <div className={`h-full transition-all duration-700 ${m.l === 'FBR' ? 'bg-green-500' : 'bg-gold'}`} style={{ width: `${Math.min((m.v/m.t)*100, 100)}%` }} />
+                    <div className={`h-full bg-gold transition-all duration-700`} style={{ width: `${Math.min((m.v/m.t)*100, 100)}%` }} />
                  </div>
               </button>
             ))}
@@ -162,7 +162,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => handleEditMeal(meal)} className="p-3 text-zinc-500 hover:text-gold active:scale-90 transition-all"><Edit3 size={18} /></button>
-                <button onClick={() => { triggerHaptic(20); onDelete(meal.id); }} className="p-3 text-zinc-800 hover:text-red-900 active:scale-90 transition-all"><Trash2 size={18} /></button>
+                <button onClick={() => { triggerHaptic(20); onDelete(meal.id); }} className="p-3 text-zinc-800 hover:text-zinc-400 active:scale-90 transition-all"><Trash2 size={18} /></button>
               </div>
             </div>
             <button 
@@ -184,13 +184,13 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
                  <h2 className="text-3xl font-light tracking-tight uppercase">Nutrient Matrix</h2>
               </header>
               <div className="space-y-4">
-                 <input className={`w-full p-6 bg-zinc-900 border ${errorVisible && !mealData.name.trim() ? 'border-red-500/30' : 'border-white/5'} rounded-2xl text-xs outline-none focus:border-gold-solid text-white uppercase tracking-widest transition-all hover:bg-zinc-800`} placeholder="ENTRY IDENTITY" value={mealData.name} onChange={e => setMealData({...mealData, name: e.target.value.toUpperCase()})} />
+                 <input className={`w-full p-6 bg-zinc-900 border ${errorVisible && !mealData.name.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-xs outline-none focus:border-gold-solid text-white uppercase tracking-widest transition-all hover:bg-zinc-800`} placeholder="ENTRY IDENTITY" value={mealData.name} onChange={e => setMealData({...mealData, name: e.target.value.toUpperCase()})} />
                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">ENERGY (KCAL)</label><input type="number" className={`w-full p-6 bg-zinc-900 border ${errorVisible && mealData.calories === 0 ? 'border-red-500/30' : 'border-white/5'} rounded-2xl text-xs outline-none text-gold font-bold transition-all hover:bg-zinc-800`} value={mealData.calories} onChange={e => setMealData({...mealData, calories: Number(e.target.value)})} /></div>
+                    <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">ENERGY (KCAL)</label><input type="number" className={`w-full p-6 bg-zinc-900 border ${errorVisible && mealData.calories === 0 ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-xs outline-none text-gold font-bold transition-all hover:bg-zinc-800`} value={mealData.calories} onChange={e => setMealData({...mealData, calories: Number(e.target.value)})} /></div>
                     <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">PROTEIN (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-bold hover:bg-zinc-800" value={mealData.protein} onChange={e => setMealData({...mealData, protein: Number(e.target.value)})} /></div>
                     <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">CARBS (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-bold hover:bg-zinc-800" value={mealData.carbs} onChange={e => setMealData({...mealData, carbs: Number(e.target.value)})} /></div>
                     <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">FATS (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-bold hover:bg-zinc-800" value={mealData.fats} onChange={e => setMealData({...mealData, fats: Number(e.target.value)})} /></div>
-                    <div className="space-y-1 col-span-2"><label className="text-[8px] text-green-600 font-bold ml-2 uppercase">Fiber (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-green-500 font-bold hover:bg-zinc-800" value={mealData.fiber} onChange={e => setMealData({...mealData, fiber: Number(e.target.value)})} /></div>
+                    <div className="space-y-1 col-span-2"><label className="text-[8px] text-zinc-600 font-bold ml-2 uppercase">Fiber (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-gold font-bold hover:bg-zinc-800" value={mealData.fiber} onChange={e => setMealData({...mealData, fiber: Number(e.target.value)})} /></div>
                  </div>
               </div>
               <div className="flex gap-4">

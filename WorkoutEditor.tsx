@@ -348,9 +348,9 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       </header>
 
       {validationError && (
-        <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-4 flex items-center gap-4 animate-in slide-in-from-top duration-500">
-          <AlertCircle size={18} className="text-red-500 shrink-0" />
-          <p className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-relaxed">{validationError}</p>
+        <div className="bg-gold/10 border-b border-gold/20 px-8 py-4 flex items-center gap-4 animate-in slide-in-from-top duration-500">
+          <AlertCircle size={18} className="text-gold shrink-0" />
+          <p className="text-[10px] font-black text-gold uppercase tracking-widest leading-relaxed">{validationError}</p>
         </div>
       )}
 
@@ -374,7 +374,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                         {routine.creator === 'Ares' ? <Crown size={12} className="text-gold" /> : <User size={12} className="text-zinc-500" />}
                         <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">{routine.creator} Protocol</span>
                         {currentActiveId === routine.id && <span className="px-2 py-0.5 bg-gold text-black text-[7px] font-black rounded-full ml-2">RUNNING</span>}
-                        {!isValid && <span className="px-2 py-0.5 bg-red-500/20 text-red-500 text-[7px] font-black rounded-full ml-2 uppercase">STRUCTURALLY INCOMPLETE</span>}
+                        {!isValid && <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[7px] font-black rounded-full ml-2 uppercase border border-white/10">STRUCTURALLY INCOMPLETE</span>}
                       </div>
                       <h4 className="text-lg font-bold uppercase tracking-tight">{routine.name}</h4>
                       <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">{routine.days.length} PHASES IN ROTATION</p>
@@ -382,7 +382,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                     <div className="flex flex-col items-end gap-3">
                       <button 
                         onClick={() => startSplit(routine.id)}
-                        className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest transition-all ${currentActiveId === routine.id ? 'bg-gold text-black' : (isValid ? 'bg-white/5 border border-white/10 text-zinc-400 hover:border-gold/30 hover:text-gold' : 'bg-red-900/10 text-red-900 border border-red-900/20 cursor-not-allowed opacity-50')}`}
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest transition-all ${currentActiveId === routine.id ? 'bg-gold text-black shadow-lg shadow-gold/20' : (isValid ? 'bg-white/5 border border-white/10 text-zinc-400 hover:border-gold/60 hover:text-gold hover:bg-white/10' : 'bg-zinc-900 text-zinc-600 border border-white/5 cursor-not-allowed opacity-50')}`}
                       >
                         {currentActiveId === routine.id ? 'RUNNING' : 'START THIS SPLIT'}
                       </button>
@@ -413,18 +413,18 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                         </div>
 
                         {routine.days.map(day => (
-                          <div key={day.id} className={`bg-black/40 border rounded-2xl overflow-hidden mb-4 ${day.exercises.length === 0 ? 'border-red-900/40 bg-red-950/5' : 'border-white/5'}`}>
+                          <div key={day.id} className={`bg-black/40 border rounded-2xl overflow-hidden mb-4 ${day.exercises.length === 0 ? 'border-gold/20 bg-gold/5' : 'border-white/5'}`}>
                             <div 
                               className="p-4 flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors"
                               onClick={() => setEditingDayId(editingDayId === day.id ? null : day.id)}
                             >
                               <div className="space-y-1">
                                 <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">{day.dayName}</p>
-                                <h5 className={`font-bold text-xs uppercase tracking-tight ${day.exercises.length === 0 ? 'text-red-500' : ''}`}>{day.focus}</h5>
+                                <h5 className={`font-bold text-xs uppercase tracking-tight ${day.exercises.length === 0 ? 'text-gold' : ''}`}>{day.focus}</h5>
                               </div>
                               <div className="flex items-center gap-4">
-                                {day.exercises.length === 0 && <AlertCircle size={14} className="text-red-500" />}
-                                <button onClick={(e) => { e.stopPropagation(); removeDay(routine.id, day.id); }} className="text-zinc-800 hover:text-red-900"><Trash2 size={14} /></button>
+                                {day.exercises.length === 0 && <AlertCircle size={14} className="text-gold" />}
+                                <button onClick={(e) => { e.stopPropagation(); removeDay(routine.id, day.id); }} className="text-zinc-800 hover:text-zinc-400"><Trash2 size={14} /></button>
                                 <ChevronDown size={14} className={`text-zinc-700 transition-transform ${editingDayId === day.id ? 'rotate-180' : ''}`} />
                               </div>
                             </div>
@@ -459,7 +459,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                                             </button>
                                           </div>
                                         </div>
-                                        <button onClick={() => removeExercise(routine.id, day.id, exIdx)} className="text-zinc-800 hover:text-red-900 opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
+                                        <button onClick={() => removeExercise(routine.id, day.id, exIdx)} className="text-zinc-800 hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
                                       </div>
                                       <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
@@ -484,9 +484,9 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                                     </div>
                                   ))}
                                   {day.exercises.length === 0 && (
-                                    <div className="py-8 px-4 border border-dashed border-red-900/20 rounded-xl flex flex-col items-center justify-center gap-3 bg-red-950/5">
-                                      <AlertCircle size={20} className="text-red-900 opacity-40" />
-                                      <p className="text-[8px] font-black text-red-900 uppercase tracking-widest text-center">Empty phase: Insert module to proceed</p>
+                                    <div className="py-8 px-4 border border-dashed border-gold/20 rounded-xl flex flex-col items-center justify-center gap-3 bg-gold/5">
+                                      <AlertCircle size={20} className="text-gold opacity-40" />
+                                      <p className="text-[8px] font-black text-gold uppercase tracking-widest text-center">Empty phase: Insert module to proceed</p>
                                     </div>
                                   )}
                                   <button 
@@ -505,7 +505,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                       {routine.creator === 'User' && (
                         <button 
                           onClick={() => deleteRoutine(routine.id)}
-                          className="w-full py-4 bg-red-950/20 border border-red-900/20 rounded-2xl text-[9px] font-black text-red-900 uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all"
+                          className="w-full py-4 bg-zinc-900 border border-white/10 rounded-2xl text-[9px] font-black text-zinc-500 uppercase tracking-widest hover:bg-zinc-800 hover:text-zinc-200 transition-all"
                         >
                           Decommission Blueprint
                         </button>
@@ -641,11 +641,11 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       {showExitWarning && (
         <div className="fixed inset-0 z-[700] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in duration-300">
            <div className="w-full max-w-sm space-y-10 bg-zinc-900 border border-white/10 p-10 rounded-[48px] shadow-2xl text-center">
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertTriangle size={40} className="text-red-500 animate-pulse" />
+              <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle size={40} className="text-gold animate-pulse" />
               </div>
               <div className="space-y-2">
-                 <p className="text-[10px] text-red-500 font-bold uppercase tracking-[0.5em]">Architecture Alert</p>
+                 <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Architecture Alert</p>
                  <h2 className="text-2xl font-light tracking-tight uppercase">Unsaved Changes</h2>
                  <p className="text-xs text-zinc-500 leading-relaxed uppercase tracking-tighter mt-4">
                     Biological protocols have been modified. Exiting now will de-synchronize the current architecture blueprint.
@@ -654,7 +654,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
               <div className="space-y-3 pt-4">
                  <button 
                   onClick={() => onCancel()} 
-                  className="w-full py-5 rounded-[24px] bg-red-500 text-white font-black uppercase tracking-[0.4em] text-[10px] shadow-lg active:scale-95 transition-all"
+                  className="w-full py-5 rounded-[24px] bg-gold text-black font-black uppercase tracking-[0.4em] text-[10px] shadow-lg active:scale-95 transition-all"
                  >
                    Discard Edits
                  </button>
