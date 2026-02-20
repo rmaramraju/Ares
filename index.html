@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ares | Elite Fitness Protocol</title>
+    
+    <!-- PWA & Mobile Optimization -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ares">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold-gradient: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            --gold-solid: #D4AF37;
+            --bg: #ffffff;
+            --surface: #f8f8f8;
+            --text-main: #1a1a1a;
+            --text-dim: #666666;
+            --border: rgba(0,0,0,0.06);
+        }
+
+        .dark {
+            --bg: #000000;
+            --surface: #0c0c0e;
+            --text-main: #f0f0f0;
+            --text-dim: #888888;
+            --border: rgba(212, 175, 55, 0.12);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            overscroll-behavior-y: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        input, textarea, [contenteditable="true"] {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #BF953F, #FCF6BA, #B38728);
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(191, 149, 63, 0.5);
+        }
+
+        .gold-text {
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gold-bg {
+            background: var(--gold-gradient);
+        }
+
+        .gold-metallic {
+            background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 45%, #B38728 50%, #FBF5B7 55%, #AA771C 100%) !important;
+            color: #000 !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 4px 15px rgba(191, 149, 63, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+            transition: all 0.2s ease;
+        }
+
+        .gold-metallic:hover {
+            filter: brightness(1.1);
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(191, 149, 63, 0.6);
+        }
+
+        .posh-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .posh-card:hover {
+            border-color: rgba(212, 175, 55, 0.8);
+            box-shadow: 0 0 35px rgba(212, 175, 55, 0.25);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-2px);
+        }
+
+        .posh-card:active {
+            border-color: var(--gold-solid);
+            transform: scale(0.99);
+            background: rgba(212, 175, 55, 0.03);
+        }
+
+        .nav-item-active {
+            color: var(--gold-solid) !important;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            opacity: 1 !important;
+        }
+
+        .tap-feedback:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            opacity: 1;
+        }
+
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+            20%, 40%, 60%, 80% { transform: translateX(6px); }
+        }
+
+        .reveal { animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        
+        .stagger-1 { animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; opacity: 0; }
+        .stagger-2 { animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; opacity: 0; }
+        .stagger-3 { animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards; opacity: 0; }
+        .stagger-4 { animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards; opacity: 0; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        html {
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        body {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+</head>
+<body class="dark">
+    <div id="root"></div>
+    <script>
+        /**
+         * Safe Service Worker Registration
+         * Prevents 'Failed to construct URL' and 'Origin mismatch' errors
+         * typical in sandboxed preview environments.
+         */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                try {
+                    // Check if current page is served over HTTPS or localhost (mandatory for SW)
+                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    
+                    if (isSecure) {
+                        // Use a simple relative path for registration
+                        navigator.serviceWorker.register('./sw.js')
+                            .then(reg => {
+                                console.log('ARES_SYNC: Protocol service worker synchronized.', reg.scope);
+                            })
+                            .catch(err => {
+                                // Gracefully fail if origin constraints are violated in sandbox
+                                if (err.name === 'SecurityError') {
+                                    console.warn('ARES_SYNC: Service worker skipped due to security origin constraints.');
+                                } else {
+                                    console.warn('ARES_SYNC: Service worker registration failed:', err.message);
+                                }
+                            });
+                    }
+                } catch (e) {
+                    console.error('ARES_SYNC: Fatal exception during worker synchronization:', e);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "Ares",
+  "short_name": "Ares",
+  "description": "AI-powered elite fitness protocol for specialized training and optimization.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3048/3048366.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
