@@ -128,13 +128,40 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
   const checkPermissions = async () => {
     try {
       if (navigator.permissions && navigator.permissions.query) {
-        const cam = await navigator.permissions.query({ name: 'camera' as any });
-        setCameraStatus(cam.state);
-        cam.onchange = () => setCameraStatus(cam.state);
+        try {
+          const cam = await navigator.permissions.query({ name: 'camera' as any });
+          setCameraStatus(cam.state);
+          cam.onchange = () => setCameraStatus(cam.state);
+        } catch (e) {
+          console.warn("ARES_CORE: Camera permission query not supported in this browser.");
+        }
       }
-      setNotificationStatus(Notification.permission);
+      if ('Notification' in window) {
+        setNotificationStatus(Notification.permission);
+      }
     } catch (e) {
-      console.error("Permission check failed", e);
+      console.warn("ARES_CORE: Permission check bypassed.", e);
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      checkPermissions();
+      HapticService.notificationSuccess();
+    } catch (e) {
+      HapticService.notificationError();
+      checkPermissions();
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationStatus(permission);
+      if (permission === 'granted') HapticService.notificationSuccess();
+      else HapticService.notificationError();
     }
   };
 
@@ -294,6 +321,30 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
            </div>
            <ChevronRight className="text-zinc-800 group-hover:text-gold" size={20} />
         </Card>
+      </section>
+
+      {/* Hardware Hub Section */}
+      <section className="w-full space-y-6">
+        <div className="flex justify-between items-center px-2">
+           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">System Permissions</h3>
+           <ShieldCheck size={14} className="text-gold opacity-50" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Card onClick={requestCameraPermission} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
+            <Camera size={18} className={cameraStatus === 'granted' ? 'text-green-500' : 'text-zinc-500'} />
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest">{cameraStatus === 'granted' ? 'AUTHORIZED' : 'CAMERA'}</p>
+              <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">{cameraStatus === 'granted' ? 'Active' : 'Request Access'}</p>
+            </div>
+          </Card>
+          <Card onClick={requestNotificationPermission} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
+            <Bell size={18} className={notificationStatus === 'granted' ? 'text-green-500' : 'text-zinc-500'} />
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest">{notificationStatus === 'granted' ? 'AUTHORIZED' : 'NOTIFICATIONS'}</p>
+              <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">{notificationStatus === 'granted' ? 'Active' : 'Request Access'}</p>
+            </div>
+          </Card>
+        </div>
       </section>
 
       {/* Hardware Hub Section */}

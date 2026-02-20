@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Zap, ShieldCheck, RefreshCw, Scan, ArrowLeft } from 'lucide-react';
+import { X, Camera, Zap, ShieldCheck, RefreshCw, Scan, ArrowLeft, Upload } from 'lucide-react';
 import { analyzePhysique } from './geminiService';
 import ReactMarkdown from 'react-markdown';
 import { HapticService } from './hapticService';
@@ -17,6 +17,7 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     startCamera();
@@ -26,7 +27,11 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
   }, []);
 
   const startCamera = async () => {
+    setError(null);
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("MEDIA_API_UNAVAILABLE");
+      }
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'user' }, 
         audio: false 
@@ -35,9 +40,15 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera access denied", err);
-      setError("CAMERA_ACCESS_DENIED: Biometric sensors offline.");
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError("PERMISSION_DENIED: Access to biometric sensors was rejected by the operator.");
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError("SENSOR_NOT_FOUND: No compatible biometric imaging hardware detected.");
+      } else {
+        setError("CAMERA_ACCESS_DENIED: Biometric sensors offline. Check system authorization.");
+      }
     }
   };
 
@@ -75,6 +86,21 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
       setError("ANALYSIS_FAILED: Neural link timeout.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        const base64 = result.split(',')[1];
+        setCapturedImage(base64);
+        stopCamera();
+        performAnalysis(base64);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -123,6 +149,12 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
               className="absolute bottom-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border-4 border-white/20 flex items-center justify-center group active:scale-90 transition-all"
             >
               <div className="w-14 h-14 rounded-full bg-white group-hover:bg-gold transition-colors" />
+            </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-12 right-10 p-4 bg-white/5 border border-white/10 rounded-2xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+            >
+              <Upload size={20} />
             </button>
           </div>
         )}
@@ -176,12 +208,25 @@ export const BiologicalScan: React.FC<BiologicalScanProps> = ({ onClose }) => {
             <div className="space-y-2">
               <h3 className="text-lg font-bold uppercase text-red-500 tracking-widest">System Error</h3>
               <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest px-12">{error}</p>
+              <p className="text-[8px] text-zinc-700 uppercase tracking-widest mt-2">Try uploading a photo instead</p>
             </div>
-            <button onClick={reset} className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Retry Handshake</button>
+            <div className="flex gap-4">
+              <button onClick={reset} className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Retry Handshake</button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-8 py-4 bg-gold/10 border border-gold/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-gold hover:bg-gold/20 transition-all flex items-center gap-2">
+                <Upload size={14} /> Upload Image
+              </button>
+            </div>
           </div>
         )}
       </div>
 
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept="image/*" 
+        onChange={handleFileUpload} 
+      />
       <canvas ref={canvasRef} className="hidden" />
 
       <style>{`
