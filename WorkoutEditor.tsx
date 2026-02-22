@@ -21,10 +21,12 @@ import {
   Check,
   Dumbbell,
   AlertCircle,
+  Clock,
   MoveUp,
   MoveDown,
   AlertTriangle,
-  Youtube
+  Youtube,
+  Zap
 } from 'lucide-react';
 import { HapticService } from './hapticService.ts';
 
@@ -33,17 +35,17 @@ interface WorkoutEditorProps {
   activeRoutineId: string | null;
   startDate: string;
   userExercises?: ExerciseMetadata[];
-  onSave: (routines: Routine[], activeId: string, effectiveDate: string) => void;
+  onSave: (routines: Routine[], activeId: string, effectiveDate: string, durationMonths?: number) => void;
   onCancel: () => void;
 }
 
 const ARCHIVE_SPLITS: Routine[] = [
   {
     id: 'arc-1',
-    name: 'CBUM CLASSIC BLUEPRINT',
-    creator: 'Chris Bumstead',
+    name: 'ARES PRIME PROTOCOL',
+    creator: 'Ares',
     isOfficial: true,
-    description: '4x Mr. Olympia blueprint. Optimized for aesthetic flow, high-density leg loading, and specific anterior chain volume.',
+    description: 'The ultimate Ares Prime blueprint. Optimized for aesthetic flow, high-density leg loading, and specific anterior chain volume.',
     days: [
       { id: 'arc1-d1', dayName: 'DAY 1', focus: 'Legs (Quads)', exercises: [
         { name: 'Front Squat', sets: 4, reps: '8-10', instructions: '', category: 'Compound', setConfigs: [SetType.NORMAL, SetType.NORMAL, SetType.NORMAL, SetType.FAILURE] }
@@ -98,8 +100,11 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
   const [effectiveDate, setEffectiveDate] = useState(startDate);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [planDuration, setPlanDuration] = useState(3);
+  const [customDuration, setCustomDuration] = useState('');
   
-  const [showDirectory, setShowDirectory] = useState<{ routineId: string; dayId: string } | null>(null);
+  const [showDirectory, setShowDirectory] = useState<{ routineId: string; dayId: string; supersetWithIndex?: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -249,10 +254,55 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
     }));
   };
 
+  const toggleSuperset = (routineId: string, dayId: string, exIdx: number) => {
+    HapticService.selection();
+    setLocalRoutines(prev => prev.map(r => {
+      if (r.id !== routineId) return r;
+      return {
+        ...r,
+        days: r.days.map(d => {
+          if (d.id !== dayId) return d;
+          const newExs = [...d.exercises];
+          const currentEx = newExs[exIdx];
+          
+          if (currentEx.supersetPartner) {
+            const partner = currentEx.supersetPartner;
+            const { supersetPartner, ...rest } = currentEx;
+            newExs[exIdx] = rest;
+            newExs.splice(exIdx + 1, 0, partner);
+          } else if (exIdx < newExs.length - 1) {
+            const partner = newExs[exIdx + 1];
+            newExs[exIdx] = { ...currentEx, supersetPartner: partner };
+            newExs.splice(exIdx + 1, 1);
+          }
+          
+          return { ...d, exercises: newExs };
+        })
+      };
+    }));
+  };
+
+  const updateSupersetPartnerField = (routineId: string, dayId: string, exIdx: number, field: keyof Exercise, value: any) => {
+    setLocalRoutines(prev => prev.map(r => {
+      if (r.id !== routineId) return r;
+      return {
+        ...r,
+        days: r.days.map(d => {
+          if (d.id !== dayId) return d;
+          const newExs = [...d.exercises];
+          if (newExs[exIdx].supersetPartner) {
+            newExs[exIdx].supersetPartner = { ...newExs[exIdx].supersetPartner!, [field]: value };
+          }
+          return { ...d, exercises: newExs };
+        })
+      };
+    }));
+  };
+
   const addExerciseToDay = (metadata: any) => {
     if (!showDirectory) return;
     HapticService.notificationSuccess();
-    const { routineId, dayId } = showDirectory;
+    const { routineId, dayId, supersetWithIndex } = showDirectory;
     const newEx: Exercise = {
       name: metadata.name,
       sets: 3,
@@ -266,7 +316,20 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       if (r.id !== routineId) return r;
       return {
         ...r,
-        days: r.days.map(d => d.id === dayId ? { ...d, exercises: [...d.exercises, newEx] } : d)
+        days: r.days.map(d => {
+          if (d.id !== dayId) return d;
+          
+          if (supersetWithIndex !== undefined) {
+            const exercises = [...d.exercises];
+            exercises[supersetWithIndex] = {
+              ...exercises[supersetWithIndex],
+              supersetPartner: newEx
+            };
+            return { ...d, exercises };
+          }
+          
+          return { ...d, exercises: [...d.exercises, newEx] };
+        })
       };
     }));
     setShowDirectory(null);
@@ -287,7 +350,9 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
     }
     HapticService.impactHeavy();
     setCurrentActiveId(id);
-    setEffectiveDate(new Date().toISOString().split('T')[0]);
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    setEffectiveDate(dateStr);
   };
 
   const handleGlobalSave = () => {
@@ -298,7 +363,11 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       setTimeout(() => setValidationError(null), 4000);
       return;
     }
-    onSave(localRoutines, currentActiveId, effectiveDate);
+    setShowFinalizeModal(true);
+  };
+
+  const confirmFinalize = () => {
+    onSave(localRoutines, currentActiveId, effectiveDate, planDuration);
   };
 
   const handleBack = () => {
@@ -376,7 +445,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                         {currentActiveId === routine.id && <span className="px-2 py-0.5 bg-gold text-black text-[7px] font-black rounded-full ml-2">RUNNING</span>}
                         {!isValid && <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[7px] font-black rounded-full ml-2 uppercase border border-white/10">STRUCTURALLY INCOMPLETE</span>}
                       </div>
-                      <h4 className="text-lg font-bold uppercase tracking-tight">{routine.name}</h4>
+                      <h4 className={`text-lg font-bold uppercase tracking-tight ${currentActiveId === routine.id ? 'gold-text' : 'text-white'}`}>{routine.name}</h4>
                       <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">{routine.days.length} PHASES IN ROTATION</p>
                     </div>
                     <div className="flex flex-col items-end gap-3">
@@ -438,50 +507,93 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
 
                                 <div className="space-y-3">
                                   {day.exercises.map((ex, exIdx) => (
-                                    <div key={exIdx} className="bg-zinc-900/20 p-4 rounded-xl border border-white/5 space-y-4 group">
-                                      <div className="flex justify-between items-start">
-                                        <div className="flex flex-col gap-0.5">
-                                          <h6 className="text-[11px] font-bold uppercase tracking-tight text-white/90">{ex.name}</h6>
-                                          <div className="flex items-center gap-2">
-                                            <button 
-                                              disabled={exIdx === 0}
-                                              onClick={() => reorderExercise(routine.id, day.id, exIdx, 'up')}
-                                              className={`p-1 rounded bg-white/5 transition-all ${exIdx === 0 ? 'opacity-20 cursor-not-allowed' : 'text-gold hover:bg-gold hover:text-black'}`}
-                                            >
-                                              <ChevronUp size={10} strokeWidth={3} />
-                                            </button>
-                                            <button 
-                                              disabled={exIdx === day.exercises.length - 1}
-                                              onClick={() => reorderExercise(routine.id, day.id, exIdx, 'down')}
-                                              className={`p-1 rounded bg-white/5 transition-all ${exIdx === day.exercises.length - 1 ? 'opacity-20 cursor-not-allowed' : 'text-gold hover:bg-gold hover:text-black'}`}
-                                            >
-                                              <ChevronDown size={10} strokeWidth={3} />
-                                            </button>
+                                      <div key={exIdx} className={`p-4 rounded-xl border space-y-4 group transition-all relative ${ex.supersetPartner ? 'bg-gold/5 border-gold/20 ring-1 ring-gold/10 mb-8' : 'bg-zinc-900/20 border-white/5'}`}>
+                                        {ex.supersetPartner && (
+                                          <div className="absolute -bottom-6 left-8 w-px h-6 bg-gold/30" />
+                                        )}
+                                        <div className="flex justify-between items-start">
+                                          <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                              <h6 className="text-[11px] font-bold uppercase tracking-tight text-white/90">{ex.name}</h6>
+                                              {ex.supersetPartner && <span className="text-[7px] bg-gold text-black px-1.5 py-0.5 rounded font-black">SUPERSET</span>}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <button 
+                                                disabled={exIdx === 0}
+                                                onClick={() => reorderExercise(routine.id, day.id, exIdx, 'up')}
+                                                className={`p-1 rounded bg-white/5 transition-all ${exIdx === 0 ? 'opacity-20 cursor-not-allowed' : 'text-gold hover:bg-gold hover:text-black'}`}
+                                              >
+                                                <ChevronUp size={10} strokeWidth={3} />
+                                              </button>
+                                              <button 
+                                                disabled={exIdx === day.exercises.length - 1}
+                                                onClick={() => reorderExercise(routine.id, day.id, exIdx, 'down')}
+                                                className={`p-1 rounded bg-white/5 transition-all ${exIdx === day.exercises.length - 1 ? 'opacity-20 cursor-not-allowed' : 'text-gold hover:bg-gold hover:text-black'}`}
+                                              >
+                                                <ChevronDown size={10} strokeWidth={3} />
+                                              </button>
+                                              {!ex.supersetPartner && (
+                                                <button 
+                                                  onClick={() => setShowDirectory({ routineId: routine.id, dayId: day.id, supersetWithIndex: exIdx })}
+                                                  className="px-2 py-1 rounded text-[7px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 hover:text-gold transition-all flex items-center gap-1"
+                                                >
+                                                  <Zap size={8} /> Add Partner
+                                                </button>
+                                              )}
+                                              {ex.supersetPartner && (
+                                                <button 
+                                                  onClick={() => toggleSuperset(routine.id, day.id, exIdx)}
+                                                  className="px-2 py-1 rounded text-[7px] font-black uppercase tracking-widest bg-gold text-black transition-all"
+                                                >
+                                                  Break Superset
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <button onClick={() => removeExercise(routine.id, day.id, exIdx)} className="text-zinc-800 hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div className="space-y-1">
+                                            <p className="text-[7px] text-zinc-700 font-black uppercase tracking-widest ml-1">Sets</p>
+                                            <input 
+                                              type="number"
+                                              className="w-full bg-black/40 p-3 rounded-lg text-xs font-bold text-gold outline-none text-center"
+                                              value={ex.sets}
+                                              onChange={(e) => updateExerciseField(routine.id, day.id, exIdx, 'sets', parseInt(e.target.value) || 0)}
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <p className="text-[7px] text-zinc-700 font-black uppercase tracking-widest ml-1">{ex.name} Reps</p>
+                                            <input 
+                                              className="w-full bg-black/40 p-3 rounded-lg text-xs font-bold text-white outline-none text-center uppercase tracking-widest"
+                                              value={ex.reps}
+                                              placeholder="10-12"
+                                              onChange={(e) => updateExerciseField(routine.id, day.id, exIdx, 'reps', e.target.value)}
+                                            />
                                           </div>
                                         </div>
-                                        <button onClick={() => removeExercise(routine.id, day.id, exIdx)} className="text-zinc-800 hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
+
+                                        {ex.supersetPartner && (
+                                          <div className="pt-4 border-t border-gold/10 space-y-4 animate-in slide-in-from-top-2">
+                                            <div className="flex items-center gap-2">
+                                              <Zap size={10} className="text-gold" />
+                                              <h6 className="text-[10px] font-bold uppercase tracking-tight text-gold">{ex.supersetPartner.name}</h6>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4">
+                                              <div className="space-y-1">
+                                                <p className="text-[7px] text-zinc-700 font-black uppercase tracking-widest ml-1">{ex.supersetPartner.name} Reps</p>
+                                                <input 
+                                                  className="w-full bg-black/40 p-3 rounded-lg text-xs font-bold text-white outline-none text-center uppercase tracking-widest"
+                                                  value={ex.supersetPartner.reps}
+                                                  placeholder="10-12"
+                                                  onChange={(e) => updateSupersetPartnerField(routine.id, day.id, exIdx, 'reps', e.target.value)}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                          <p className="text-[7px] text-zinc-700 font-black uppercase tracking-widest ml-1">Sets</p>
-                                          <input 
-                                            type="number"
-                                            className="w-full bg-black/40 p-3 rounded-lg text-xs font-bold text-gold outline-none text-center"
-                                            value={ex.sets}
-                                            onChange={(e) => updateExerciseField(routine.id, day.id, exIdx, 'sets', parseInt(e.target.value) || 0)}
-                                          />
-                                        </div>
-                                        <div className="space-y-1">
-                                          <p className="text-[7px] text-zinc-700 font-black uppercase tracking-widest ml-1">Intensity Params</p>
-                                          <input 
-                                            className="w-full bg-black/40 p-3 rounded-lg text-xs font-bold text-white outline-none text-center uppercase tracking-widest"
-                                            value={ex.reps}
-                                            placeholder="10-12"
-                                            onChange={(e) => updateExerciseField(routine.id, day.id, exIdx, 'reps', e.target.value)}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
                                   ))}
                                   {day.exercises.length === 0 && (
                                     <div className="py-8 px-4 border border-dashed border-gold/20 rounded-xl flex flex-col items-center justify-center gap-3 bg-gold/5">
@@ -581,6 +693,61 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
           </Card>
         </div>
       </div>
+
+      {showFinalizeModal && (
+        <div className="fixed inset-0 z-[600] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in duration-500">
+          <div className="w-full max-w-md space-y-10">
+            <header className="text-center space-y-4">
+              <div className="w-16 h-16 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center mx-auto">
+                <Clock size={32} className="text-gold" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] text-gold font-bold uppercase tracking-[0.4em]">Temporal Commitment</p>
+                <h2 className="text-2xl font-light tracking-tight uppercase">Protocol Duration</h2>
+                <p className="text-[11px] text-zinc-500 font-light leading-relaxed">Define the operational window for this training block. Consistency is the primary catalyst for adaptation.</p>
+              </div>
+            </header>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[3, 6, 9].map(m => (
+                <button 
+                  key={m}
+                  onClick={() => { setPlanDuration(m); setCustomDuration(''); }}
+                  className={`py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${planDuration === m && !customDuration ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                >
+                  <span className="text-2xl font-black tabular-nums">{m}</span>
+                  <span className="text-[8px] font-bold uppercase tracking-widest">Months</span>
+                </button>
+              ))}
+              <div className={`p-4 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${customDuration ? 'bg-gold/10 border-gold/40' : 'bg-zinc-900 border-white/5'}`}>
+                <input 
+                  type="number"
+                  placeholder="Custom"
+                  value={customDuration}
+                  onChange={(e) => { setCustomDuration(e.target.value); setPlanDuration(Number(e.target.value)); }}
+                  className="w-full bg-transparent text-center text-2xl font-black text-white outline-none placeholder:text-zinc-800"
+                />
+                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Months</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button 
+                onClick={confirmFinalize}
+                className="w-full py-6 bg-white text-black rounded-[32px] text-[11px] font-black uppercase tracking-[0.4em] shadow-2xl active:scale-95 transition-all"
+              >
+                Finalize Protocol
+              </button>
+              <button 
+                onClick={() => setShowFinalizeModal(false)}
+                className="w-full py-4 text-zinc-600 font-bold uppercase tracking-widest text-[9px] hover:text-zinc-400 transition-colors"
+              >
+                Abort & Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDirectory && (
         <div className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-2xl flex flex-col animate-in fade-in slide-in-from-bottom duration-500">

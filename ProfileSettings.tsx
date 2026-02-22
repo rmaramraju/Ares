@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AppState, UserProfile, Goal, AIPersona, Gender, UnitSystem, MuscleGroup, ExerciseMetadata } from './types.ts';
+import { AppState, UserProfile, Goal, AIPersona, Gender, UnitSystem, MuscleGroup, ExerciseMetadata, Theme } from './types.ts';
 import { Card } from './components/Card.tsx';
 import { HapticService } from './hapticService.ts';
 import { EXERCISE_DIRECTORY } from './exerciseDirectory.ts';
@@ -42,7 +42,10 @@ import {
   Plus,
   Youtube,
   Save,
-  Trash2
+  Trash2,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 
 interface ProfileSettingsProps {
@@ -52,6 +55,7 @@ interface ProfileSettingsProps {
   onLogWeight: (weight: number) => void;
   onToggleWearable: (id: string) => void;
   onAddCustomExercise: (ex: ExerciseMetadata) => void;
+  onUpdateTheme: (theme: Theme) => void;
   onToggleNav?: (visible: boolean) => void;
 }
 
@@ -65,7 +69,7 @@ const INTEGRATION_PROVIDERS = [
 
 const MUSCLE_LIST: MuscleGroup[] = ['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'];
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onToggleNav }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onUpdateTheme, onToggleNav }) => {
   const profile = state.profile;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -105,7 +109,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
         gender: profile.gender,
         goal: profile.goal,
         persona: profile.persona,
-        unitSystem: profile.unitSystem || UnitSystem.METRIC
+        unitSystem: profile.unitSystem || UnitSystem.METRIC,
+        selectedDays: profile.selectedDays || []
       });
     }
   }, [profile, showIdentityEditor]);
@@ -177,6 +182,15 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
     fileInputRef.current?.click();
   };
 
+  const toggleDay = (day: number) => {
+    setFormData(prev => {
+      const current = prev.selectedDays || [];
+      const next = current.includes(day) 
+        ? current.filter(d => d !== day)
+        : [...current, day].sort();
+      return { ...prev, selectedDays: next };
+    });
+  };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && profile) {
@@ -440,6 +454,25 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                     {Object.values(Goal).map(g => <option key={g} value={g}>{g.toUpperCase()}</option>)}
                   </select>
                </div>
+            </div>
+
+            <div className="space-y-6">
+               <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Operational Schedule</label>
+               <div className="grid grid-cols-7 gap-2">
+                  {['S','M','T','W','T','F','S'].map((day, i) => {
+                    const isSelected = formData.selectedDays?.includes(i);
+                    return (
+                      <button 
+                        key={i}
+                        onClick={() => toggleDay(i)}
+                        className={`h-12 rounded-xl border text-[10px] font-black transition-all ${isSelected ? 'bg-gold border-gold text-black shadow-lg shadow-gold/20' : 'bg-zinc-900 border-white/5 text-zinc-600'}`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+               </div>
+               <p className="text-[7px] text-zinc-700 uppercase tracking-widest text-center">Select active deployment windows. Past data remains immutable.</p>
             </div>
           </div>
 

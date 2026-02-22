@@ -188,6 +188,150 @@ export const EXERCISE_DIRECTORY: ExerciseMetadata[] = [
     youtubeId: 'U8X28qM8Cks',
     animationUrl: ytThumb('U8X28qM8Cks'),
     category: 'HIIT'
+  },
+  {
+    id: 'chest_db_fly',
+    name: 'Dumbbell Chest Fly',
+    primaryMuscle: 'Chest',
+    youtubeId: 'eGjt4adGeH4',
+    animationUrl: ytThumb('eGjt4adGeH4'),
+    category: 'Isolation'
+  },
+  {
+    id: 'back_lat_pulldown',
+    name: 'Lat Pulldown',
+    primaryMuscle: 'Back',
+    secondaryMuscles: ['Biceps'],
+    youtubeId: 'CAwf7n6Luuc',
+    animationUrl: ytThumb('CAwf7n6Luuc'),
+    category: 'Compound'
+  },
+  {
+    id: 'back_seated_row',
+    name: 'Seated Cable Row',
+    primaryMuscle: 'Back',
+    secondaryMuscles: ['Biceps'],
+    youtubeId: 'GZbfZ033f74',
+    animationUrl: ytThumb('GZbfZ033f74'),
+    category: 'Compound'
+  },
+  {
+    id: 'sh_ohp',
+    name: 'Overhead Barbell Press',
+    primaryMuscle: 'Shoulders',
+    secondaryMuscles: ['Triceps'],
+    youtubeId: '2yjwXTZQDDI',
+    animationUrl: ytThumb('2yjwXTZQDDI'),
+    category: 'Compound'
+  },
+  {
+    id: 'sh_arnold_press',
+    name: 'Arnold Press',
+    primaryMuscle: 'Shoulders',
+    secondaryMuscles: ['Triceps'],
+    youtubeId: '6Z15_WdXmVw',
+    animationUrl: ytThumb('6Z15_WdXmVw'),
+    category: 'Compound'
+  },
+  {
+    id: 'legs_leg_press',
+    name: 'Leg Press',
+    primaryMuscle: 'Quads',
+    secondaryMuscles: ['Glutes', 'Hamstrings'],
+    youtubeId: 'IZxyjW7MPJQ',
+    animationUrl: ytThumb('IZxyjW7MPJQ'),
+    category: 'Compound'
+  },
+  {
+    id: 'legs_romanian_deadlift',
+    name: 'Romanian Deadlift',
+    primaryMuscle: 'Hamstrings',
+    secondaryMuscles: ['Glutes', 'Back'],
+    youtubeId: 'JCX81dxzJ8Q',
+    animationUrl: ytThumb('JCX81dxzJ8Q'),
+    category: 'Compound'
+  },
+  {
+    id: 'arm_tricep_pushdown',
+    name: 'Tricep Rope Pushdown',
+    primaryMuscle: 'Triceps',
+    youtubeId: '2-LAMcpzHLU',
+    animationUrl: ytThumb('2-LAMcpzHLU'),
+    category: 'Isolation'
+  },
+  {
+    id: 'arm_hammer_curl',
+    name: 'Hammer Curls',
+    primaryMuscle: 'Biceps',
+    youtubeId: 'zC3nLlEvin4',
+    animationUrl: ytThumb('zC3nLlEvin4'),
+    category: 'Isolation'
+  },
+  {
+    id: 'core_plank',
+    name: 'Forearm Plank',
+    primaryMuscle: 'Core',
+    youtubeId: 'pSHjTRCQxIw',
+    animationUrl: ytThumb('pSHjTRCQxIw'),
+    category: 'Isolation'
+  },
+  {
+    id: 'core_leg_raise',
+    name: 'Hanging Leg Raises',
+    primaryMuscle: 'Core',
+    youtubeId: 'hd0m_0_A9-k',
+    animationUrl: ytThumb('hd0m_0_A9-k'),
+    category: 'Isolation'
+  },
+  {
+    id: 'chest_cable_fly',
+    name: 'Cable Chest Fly',
+    primaryMuscle: 'Chest',
+    youtubeId: 'Iwe6AmxVf7o',
+    animationUrl: ytThumb('Iwe6AmxVf7o'),
+    category: 'Isolation'
+  },
+  {
+    id: 'back_pullup',
+    name: 'Wide Grip Pull-Ups',
+    primaryMuscle: 'Back',
+    secondaryMuscles: ['Biceps'],
+    youtubeId: 'eGo4IYlbE5g',
+    animationUrl: ytThumb('eGo4IYlbE5g'),
+    category: 'Compound'
+  },
+  {
+    id: 'sh_face_pull',
+    name: 'Face Pulls',
+    primaryMuscle: 'Shoulders',
+    secondaryMuscles: ['Back'],
+    youtubeId: 'rep-qVOkqgk',
+    animationUrl: ytThumb('rep-qVOkqgk'),
+    category: 'Isolation'
+  },
+  {
+    id: 'legs_calf_raise',
+    name: 'Standing Calf Raises',
+    primaryMuscle: 'Calves',
+    youtubeId: 'YMmgqO8Jo-k',
+    animationUrl: ytThumb('YMmgqO8Jo-k'),
+    category: 'Isolation'
+  },
+  {
+    id: 'arm_skull_crusher',
+    name: 'EZ-Bar Skull Crushers',
+    primaryMuscle: 'Triceps',
+    youtubeId: 'd_KZxPnN_ss',
+    animationUrl: ytThumb('d_KZxPnN_ss'),
+    category: 'Isolation'
+  },
+  {
+    id: 'arm_preacher_curl',
+    name: 'Preacher Curls',
+    primaryMuscle: 'Biceps',
+    youtubeId: 'fIWP-FRFNU0',
+    animationUrl: ytThumb('fIWP-FRFNU0'),
+    category: 'Isolation'
   }
 ];
 

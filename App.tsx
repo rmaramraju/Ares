@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppState, UserProfile, WorkoutDay, Meal, ViewType, ExerciseLog, WorkoutHistoryItem, Gender, BodyType, Goal, Routine, SetType, AIPersona, UnitSystem, DailyMetric, ExerciseMetadata } from './types.ts';
+import { AppState, UserProfile, WorkoutDay, Meal, ViewType, ExerciseLog, WorkoutHistoryItem, Gender, BodyType, Goal, Routine, SetType, AIPersona, UnitSystem, DailyMetric, ExerciseMetadata, DayStatus, Theme } from './types.ts';
 import { AresSyncEngine } from './syncService.ts';
 import { Auth } from './Auth.tsx';
 import { Onboarding } from './Onboarding.tsx';
@@ -30,6 +30,7 @@ const App: React.FC = () => {
     workoutPlan: null,
     splitStartDate: null,
     dailyMeals: [],
+    mealHistory: {},
     activeWorkout: null,
     workoutStartTime: null,
     workoutHistory: [],
@@ -38,9 +39,11 @@ const App: React.FC = () => {
     pinnedMetrics: ['zpi-trend', 'volume-progression'],
     dailyMetricsHistory: [],
     weightHistory: [],
+    lastResetDate: null,
     connectedWearables: [],
     persona: AIPersona.ARES,
-    userExercises: []
+    userExercises: [],
+    theme: Theme.DARK
   });
 
   // Initial Load
@@ -66,21 +69,52 @@ const App: React.FC = () => {
     return () => clearTimeout(debounce);
   }, [state]);
 
+  // Daily Reset Logic
+  useEffect(() => {
+    if (!state.isOnboarded) return;
+
+    const today = getLocalDateString(new Date());
+    if (state.lastResetDate !== today) {
+      setState(prev => {
+        const lastDate = prev.lastResetDate;
+        const newMealHistory = lastDate ? { ...prev.mealHistory, [lastDate]: prev.dailyMeals } : prev.mealHistory;
+        
+        return {
+          ...prev,
+          lastResetDate: today,
+          mealHistory: newMealHistory,
+          dailyMeals: prev.dailyMeals.map(m => ({ ...m, checked: false })),
+          activeWorkout: prev.activeWorkout ? (prev.activeWorkout.id.startsWith('custom-') ? null : prev.activeWorkout) : null
+        };
+      });
+    }
+  }, [state.isOnboarded, state.lastResetDate]);
+
+  const getLocalDateString = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const updateDailyMetrics = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString(new Date());
     const todaysWorkouts = state.workoutHistory.filter(h => h.date === today);
     const todaysMeals = state.dailyMeals.filter(m => m.checked);
     
     const totalVolume = todaysWorkouts.reduce((acc, w) => {
       let vol = 0;
       (Object.values(w.logs) as ExerciseLog[][]).forEach(sets => {
-        sets.forEach(s => vol += (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0));
+        sets.forEach(s => {
+          vol += (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0);
+          if (s.supersetWeight && s.supersetReps) {
+            vol += (parseFloat(s.supersetWeight) || 0) * (parseFloat(s.supersetReps) || 0);
+          }
+        });
       });
       return acc + vol;
     }, 0);
 
     const totalProtein = todaysMeals.reduce((acc, m) => acc + m.protein, 0);
     const totalCals = todaysMeals.reduce((acc, m) => acc + m.calories, 0);
+    const totalCarbs = todaysMeals.reduce((acc, m) => acc + m.carbs, 0);
+    const totalFats = todaysMeals.reduce((acc, m) => acc + m.fats, 0);
+    const totalFiber = todaysMeals.reduce((acc, m) => acc + m.fiber, 0);
 
     const volumeTarget = 5000; 
     const proteinTarget = state.profile?.targetProtein || 180;
@@ -115,12 +149,26 @@ const App: React.FC = () => {
       }
     }
 
+    const isWorkoutDone = todaysWorkouts.length > 0;
+    const isFoodDone = state.dailyMeals.length > 0 && todaysMeals.length >= state.dailyMeals.length;
+    
+    let currentStatus: DayStatus | undefined = state.activityLog[today];
+    if (currentStatus !== 'rest' && currentStatus !== 'sick') {
+      if (isWorkoutDone && isFoodDone) currentStatus = 'full';
+      else if (isWorkoutDone) currentStatus = 'workout_only';
+      else if (isFoodDone) currentStatus = 'food_only';
+      else currentStatus = undefined;
+    }
+
     const newMetric: DailyMetric = {
       date: today,
       duration: todaysWorkouts.reduce((acc, w) => acc + w.duration, 0),
       volume: totalVolume,
       calories: totalCals,
       protein: totalProtein,
+      carbs: totalCarbs,
+      fats: totalFats,
+      fiber: totalFiber,
       zpi: Math.round(vScore + pScore),
       weight: state.profile?.weight,
       ...recoveryData
@@ -130,7 +178,8 @@ const App: React.FC = () => {
       const filteredHistory = prev.dailyMetricsHistory.filter(m => m.date !== today);
       return {
         ...prev,
-        dailyMetricsHistory: [...filteredHistory, newMetric]
+        dailyMetricsHistory: [...filteredHistory, newMetric],
+        activityLog: currentStatus ? { ...prev.activityLog, [today]: currentStatus } : prev.activityLog
       };
     });
   };
@@ -153,7 +202,7 @@ const App: React.FC = () => {
       })
     }));
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString(new Date());
     const initialRoutine: Routine = {
       id: 'initial-' + Date.now(),
       name: `ARES OFFICIAL PROTOCOL`,
@@ -200,7 +249,7 @@ const App: React.FC = () => {
 
   const handleWorkoutComplete = (durationSecs: number, logs: Record<string, ExerciseLog[]>) => {
     HapticService.protocolComplete();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString(new Date());
     const historyEntry: WorkoutHistoryItem = {
       date: todayStr,
       focus: state.activeWorkout?.focus || 'Movement',
@@ -249,6 +298,7 @@ const App: React.FC = () => {
       workoutPlan: null,
       splitStartDate: null,
       dailyMeals: [],
+      mealHistory: {},
       activeWorkout: null,
       workoutStartTime: null,
       workoutHistory: [],
@@ -257,15 +307,17 @@ const App: React.FC = () => {
       pinnedMetrics: ['zpi-trend', 'volume-progression'],
       dailyMetricsHistory: [],
       weightHistory: [],
+      lastResetDate: null,
       connectedWearables: [],
       persona: AIPersona.ARES,
-      userExercises: []
+      userExercises: [],
+      theme: Theme.DARK
     });
   };
 
   const handleSkipDemo = () => {
     HapticService.impactMedium();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString(new Date());
     const mockProfile: UserProfile = {
       name: 'Julian Sterling', 
       age: 32, weight: 85, height: 188, gender: Gender.MALE, bodyType: BodyType.MESOMORPH,
@@ -387,9 +439,19 @@ const App: React.FC = () => {
         {state.currentView === 'analytics' && <Analytics state={state} onTogglePin={() => {}} onBack={() => { HapticService.impactLight(); setState(s => ({ ...s, currentView: 'workouts' })); }} />}
         {state.currentView === 'edit_plan' && (
           <WorkoutEditor 
-            routines={state.routines || []} activeRoutineId={state.activeRoutineId} startDate={state.splitStartDate || new Date().toISOString().split('T')[0]}
+            routines={state.routines || []} activeRoutineId={state.activeRoutineId} startDate={state.splitStartDate || getLocalDateString(new Date())}
             userExercises={state.userExercises}
-            onSave={(updatedRoutines, activeId, date) => { HapticService.notificationSuccess(); setState(prev => ({ ...prev, routines: updatedRoutines, activeRoutineId: activeId, splitStartDate: date, currentView: 'workouts' })); }}
+            onSave={(updatedRoutines, activeId, date, duration) => { 
+              HapticService.notificationSuccess(); 
+              setState(prev => ({ 
+                ...prev, 
+                routines: updatedRoutines, 
+                activeRoutineId: activeId, 
+                splitStartDate: date, 
+                currentView: 'workouts',
+                profile: prev.profile ? { ...prev.profile, planDurationMonths: duration || prev.profile.planDurationMonths } : null
+              })); 
+            }}
             onCancel={() => { HapticService.impactLight(); setState(s => ({ ...s, currentView: 'workouts' })); }}
           />
         )}
@@ -400,13 +462,14 @@ const App: React.FC = () => {
             onLogout={handleLogout} 
             onLogWeight={(w) => {
               HapticService.notificationSuccess();
-              const t = new Date().toISOString().split('T')[0];
+              const t = getLocalDateString(new Date());
               setState(prev => ({ ...prev, profile: prev.profile ? { ...prev.profile, weight: w } : null, weightHistory: [...(prev.weightHistory || []), { date: t, weight: w }] }));
               setTimeout(updateDailyMetrics, 100);
             }} 
             onToggleWearable={handleWearableToggle} 
             onAddCustomExercise={handleAddCustomExercise}
             onToggleNav={setIsNavVisible}
+            onUpdateTheme={(t) => setState(prev => ({ ...prev, theme: t }))}
           />
         )}
         {state.currentView === 'confirm_plan' && (

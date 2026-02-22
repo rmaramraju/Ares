@@ -4,7 +4,7 @@ import { BodyType, Goal, Gender, UserProfile, UnitSystem } from './types.ts';
 import { generateFitnessPlan } from './geminiService.ts';
 import { Card } from './components/Card.tsx';
 import { HapticService } from './hapticService.ts';
-import { ChevronRight, Crown, Dumbbell, Scale, Ruler, HelpCircle, X, Info, Globe } from 'lucide-react';
+import { ChevronRight, Crown, Dumbbell, Scale, Ruler, HelpCircle, X, Info, Globe, Sparkles } from 'lucide-react';
 
 interface OnboardingProps {
   onComplete: (profile: UserProfile, plans: any) => void;
@@ -15,9 +15,11 @@ const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [errorVisible, setErrorVisible] = useState(false);
   const [showBodyFatHelp, setShowBodyFatHelp] = useState(false);
   const [showBodyTypeHelp, setShowBodyTypeHelp] = useState(false);
+  const [generatedPlans, setGeneratedPlans] = useState<any>(null);
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     name: '',
     age: 25,
@@ -32,6 +34,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     goal: Goal.BULK,
     cardioPreference: [],
     cuisinePreference: 'Clean Modern',
+    workoutPreference: 'Strength + Cardio',
+    detailedGoals: '',
   });
 
   const calculateMaintenance = () => {
@@ -67,7 +71,42 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     if (step === 4) {
       return formData.cuisinePreference?.trim() !== '';
     }
+    if (step === 5) {
+      return formData.detailedGoals?.trim() !== '' && formData.workoutPreference?.trim() !== '';
+    }
     return true;
+  };
+
+  const handleManual = () => {
+    HapticService.impactHeavy();
+    const maintenance = calculateMaintenance();
+    const now = new Date();
+    const joinDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const profile = { 
+      ...formData, 
+      maintenanceCalories: maintenance,
+      joinDate: joinDate,
+      goalWeight: formData.weight,
+      targetBodyFat: formData.currentBodyFat
+    } as UserProfile;
+    
+    const emptyPlans = {
+      workoutPlan: (formData.selectedDays || []).map((day) => ({
+        dayName: DAY_LABELS[day],
+        focus: 'New Module',
+        exercises: []
+      })),
+      dietPlan: [
+        { name: 'Meal 1', calories: Math.round(maintenance * 0.3), protein: 30, carbs: 40, fats: 10, fiber: 5 },
+        { name: 'Meal 2', calories: Math.round(maintenance * 0.4), protein: 40, carbs: 50, fats: 15, fiber: 10 },
+        { name: 'Meal 3', calories: Math.round(maintenance * 0.3), protein: 30, carbs: 40, fats: 10, fiber: 5 },
+      ],
+      goalWeight: formData.weight,
+      targetBodyFat: formData.currentBodyFat,
+      cardioRecommendation: 'Moderate activity recommended.'
+    };
+    
+    onComplete(profile, emptyPlans);
   };
 
   const handleNext = async () => {
@@ -79,27 +118,41 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     }
 
     HapticService.impactLight();
-    if (step < 4) {
+    if (step < 5) {
       setStep(step + 1);
-    } else {
+    } else if (step === 5) {
       setLoading(true);
       const maintenance = calculateMaintenance();
+      const now = new Date();
+      const joinDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const profile = { 
         ...formData, 
         maintenanceCalories: maintenance,
-        joinDate: new Date().toISOString().split('T')[0]
+        joinDate: joinDate
       } as UserProfile;
       try {
+        setError(null);
         const plans = await generateFitnessPlan(profile);
-        onComplete({ 
-          ...profile, 
-          goalWeight: plans.goalWeight, 
-          targetBodyFat: plans.targetBodyFat 
-        }, plans);
+        setGeneratedPlans(plans);
+        setStep(6);
+        setLoading(false);
       } catch (err) {
         console.error(err);
+        setError("Protocol Synthesis Failed. Please check your connection and try again.");
         setLoading(false);
       }
+    } else if (step === 6) {
+      const maintenance = calculateMaintenance();
+      const now = new Date();
+      const joinDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const profile = { 
+        ...formData, 
+        maintenanceCalories: maintenance,
+        joinDate: joinDate,
+        goalWeight: generatedPlans.goalWeight, 
+        targetBodyFat: generatedPlans.targetBodyFat 
+      } as UserProfile;
+      onComplete(profile, generatedPlans);
     }
   };
 
@@ -111,7 +164,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           <Crown className="text-[#C5A059] mx-auto opacity-70" size={32} strokeWidth={1.5} />
           <div className="space-y-1">
             <h1 className="text-2xl font-light tracking-[0.3em] text-white uppercase">Ares Protocol</h1>
-            <p className="text-zinc-600 text-[10px] font-bold tracking-[0.5em] uppercase">Sequence Phase {step} / 4</p>
+            <p className="text-zinc-600 text-[10px] font-bold tracking-[0.5em] uppercase">Sequence Phase {step} / 6</p>
           </div>
         </header>
 
@@ -248,25 +301,128 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               </div>
             </div>
           )}
+
+          {step === 5 && (
+            <div className="space-y-10 reveal">
+              <div className="space-y-4 stagger-1">
+                <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Detailed Objectives</label>
+                <textarea 
+                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.detailedGoals?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all min-h-[120px] resize-none`}
+                  placeholder="E.G. INCREASE BENCH PRESS, LOSE 5KG FAT, IMPROVE STAMINA"
+                  value={formData.detailedGoals}
+                  onChange={e => setFormData({...formData, detailedGoals: e.target.value})}
+                />
+              </div>
+              <div className="space-y-4 stagger-2">
+                <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Workout Modality</label>
+                <input 
+                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.workoutPreference?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`}
+                  placeholder="E.G. CARDIO + STRENGTH, HIIT, POWERLIFTING"
+                  value={formData.workoutPreference}
+                  onChange={e => setFormData({...formData, workoutPreference: e.target.value})}
+                />
+              </div>
+              <div className="p-8 rounded-[40px] border border-white/5 bg-zinc-900 flex items-center gap-6 stagger-3">
+                <Sparkles className="text-gold opacity-40" size={24} strokeWidth={1.5} />
+                <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold uppercase tracking-widest">
+                  Ares AI will architect your protocol based on these specific parameters.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {step === 6 && generatedPlans && (
+            <div className="space-y-8 reveal">
+              <div className="text-center space-y-2 mb-4">
+                <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-gold">Protocol Review</h3>
+                <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Verify AI-Architected Targets</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-2">
+                  <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Target Weight</p>
+                  <p className="text-xl font-light tracking-tight">{generatedPlans.goalWeight} <span className="text-[10px] text-zinc-500 uppercase">{formData.unitSystem === UnitSystem.METRIC ? 'KG' : 'LB'}</span></p>
+                </Card>
+                <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-2">
+                  <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Target Body Fat</p>
+                  <p className="text-xl font-light tracking-tight">{generatedPlans.targetBodyFat}%</p>
+                </Card>
+              </div>
+
+              <Card className="p-6 bg-zinc-900/40 border-white/5 space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Daily Calorie Target</p>
+                  <p className="text-sm font-bold text-gold">{generatedPlans.dietPlan.reduce((acc: number, m: any) => acc + m.calories, 0)} KCAL</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Workout Split</p>
+                  <div className="space-y-1">
+                    {generatedPlans.workoutPlan.map((d: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{d.dayName}</span>
+                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">{d.focus}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              <div className="p-6 rounded-[32px] border border-gold/20 bg-gold/5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Globe className="text-gold" size={16} />
+                  <p className="text-[9px] font-black text-gold uppercase tracking-widest">Cardio Strategy</p>
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-relaxed uppercase tracking-widest font-medium">
+                  {generatedPlans.cardioRecommendation}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
-        <button
-          disabled={loading}
-          onClick={handleNext}
-          className={`font-bold h-16 rounded-[32px] flex items-center justify-center space-x-4 shadow-xl active:scale-95 transition-all mt-auto reveal stagger-4 ${!validateStep() ? 'bg-zinc-800 text-zinc-600 opacity-50' : 'bg-white text-black'}`}
-        >
-          {loading ? (
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-[10px] tracking-widest uppercase">Synthesizing...</span>
-            </div>
-          ) : (
-            <>
-              <span className="text-[11px] tracking-[0.5em] uppercase">{step === 4 ? "ACTIVATE SYSTEM" : "CONTINUE"}</span>
-              <ChevronRight size={16} strokeWidth={3} />
-            </>
-          )}
-        </button>
+        {step === 5 ? (
+          <div className="flex flex-col gap-4 mt-auto reveal stagger-4">
+            <button
+              disabled={loading}
+              onClick={handleNext}
+              className={`font-bold h-16 rounded-[32px] flex items-center justify-center space-x-4 shadow-xl active:scale-95 transition-all ${!validateStep() ? 'bg-zinc-800 text-zinc-600 opacity-50' : 'bg-gold text-black'}`}
+            >
+              {loading ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-[10px] tracking-widest uppercase">Synthesizing...</span>
+                </div>
+              ) : (
+                <>
+                  <Sparkles size={16} className="text-black" />
+                  <span className="text-[11px] tracking-[0.3em] uppercase">Build with Ares AI</span>
+                  <ChevronRight size={16} strokeWidth={3} />
+                </>
+              )}
+            </button>
+            <button
+              disabled={loading}
+              onClick={handleManual}
+              className="font-bold h-16 rounded-[32px] flex items-center justify-center space-x-4 border border-white/10 text-zinc-400 hover:text-white hover:border-white/30 transition-all active:scale-95"
+            >
+              <span className="text-[11px] tracking-[0.3em] uppercase">Edit & Create Manually</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleNext}
+            className={`font-bold h-16 rounded-[32px] flex items-center justify-center space-x-4 shadow-xl active:scale-95 transition-all mt-auto reveal stagger-4 ${!validateStep() ? 'bg-zinc-800 text-zinc-600 opacity-50' : 'bg-white text-black'}`}
+          >
+            <span className="text-[11px] tracking-[0.5em] uppercase">{step === 6 ? 'DEPLOY PROTOCOL' : 'CONTINUE'}</span>
+            <ChevronRight size={16} strokeWidth={3} />
+          </button>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-center animate-in fade-in slide-in-from-bottom-2">
+            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">{error}</p>
+          </div>
+        )}
       </div>
 
       {showBodyTypeHelp && (

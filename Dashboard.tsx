@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, WorkoutDay, DayStatus, ExerciseLog, ExerciseMetadata } from './types.ts';
 import { Card } from './components/Card.tsx';
-import { BiologicalScan } from './BiologicalScan.tsx';
 import { LIGHT_EXERCISES, EXERCISE_DIRECTORY } from './exerciseDirectory.ts';
 import { 
   Play, 
@@ -34,7 +33,8 @@ import {
   ArrowRight,
   MoveRight,
   CalendarDays,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -48,7 +48,8 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onEditSplit, onToggleRestDay, onRescheduleWorkout, onToggleNav }) => {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const getLocalDateString = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = getLocalDateString(now);
   const joinDate = state.profile?.joinDate ? new Date(state.profile.joinDate) : new Date();
   
   const [viewDate, setViewDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -57,7 +58,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [showSplitLab, setShowSplitLab] = useState(false);
   const [showReschedulePicker, setShowReschedulePicker] = useState<{ date: string; workout: WorkoutDay } | null>(null);
-  const [showBioScan, setShowBioScan] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recoverySelection, setRecoverySelection] = useState<any[]>([]);
@@ -67,9 +67,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
 
   useEffect(() => {
     if (onToggleNav) {
-      onToggleNav(!(showRecoveryLab || showManualPicker || showSplitLab || !!showReschedulePicker || !!selectedDate || showBioScan));
+      onToggleNav(!(showRecoveryLab || showManualPicker || showSplitLab || !!showReschedulePicker || !!selectedDate));
     }
-  }, [showRecoveryLab, showManualPicker, showSplitLab, showReschedulePicker, selectedDate, showBioScan, onToggleNav]);
+  }, [showRecoveryLab, showManualPicker, showSplitLab, showReschedulePicker, selectedDate, onToggleNav]);
 
   const categories = useMemo(() => {
     const cats = new Set(mergedDirectory.map(ex => ex.category));
@@ -97,15 +97,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   const missedWorkouts = useMemo(() => {
     const completedToday = state.workoutHistory.some(h => h.date === todayStr);
     const rescheduledToday = !!state.rescheduledWorkouts?.[todayStr];
-    if (completedToday) return [];
 
     const missed: { date: string, workout: WorkoutDay | null }[] = [];
-    const joinStr = joinDate.toISOString().split('T')[0];
+    const joinStr = getLocalDateString(joinDate);
 
     for (let i = 1; i <= 14; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = getLocalDateString(d);
       if (dStr < joinStr) continue;
 
       const isWorkday = isDateWorkoutDay(d);
@@ -130,10 +129,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   
   const todayWorkout = rescheduledWorkoutToday || (isTodayManualRest ? null : scheduledWorkoutToday);
   
-  const latestMetric = state.dailyMetricsHistory.length > 0 
-    ? state.dailyMetricsHistory[state.dailyMetricsHistory.length - 1] 
-    : null;
-  const score = latestMetric ? Math.round(latestMetric.zpi) : 0;
+  const todayMetric = state.dailyMetricsHistory.find(m => m.date === todayStr);
+  const score = todayMetric ? Math.round(todayMetric.zpi) : 0;
 
   const getRank = (s: number) => {
     if (s >= 90) return 'S';
@@ -159,7 +156,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
 
   const getStatusStyle = (status: DayStatus | undefined, isToday: boolean, isWorkoutDay: boolean, dateStr: string) => {
     const base = "w-full aspect-square rounded-xl flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer relative ";
-    const todayStr = now.toISOString().split('T')[0];
     const isRescheduledDay = !!state.rescheduledWorkouts?.[dateStr];
     
     let classes = base;
@@ -167,11 +163,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     if (status === 'full') {
       classes += "bg-[#C5A059] text-black shadow-[0_0_15px_rgba(197,160,89,0.3)] hover:brightness-110 ";
     } else if (status === 'rest') {
-      classes += "bg-zinc-900/40 text-zinc-400 border border-white/5 hover:bg-zinc-800 hover:text-zinc-300 ";
+      classes += "bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-900/40 hover:text-emerald-400 ";
     } else if (isRescheduledDay) {
       classes += "bg-gold/10 text-gold border border-gold/40 border-dashed hover:bg-gold/20 hover:border-gold ";
     } else if (status === 'missed' || (!status && dateStr < todayStr && isWorkoutDay)) {
-      classes += "bg-zinc-900/60 text-zinc-500 border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:bg-zinc-800 hover:border-zinc-400 ";
+      classes += "bg-red-900/20 text-red-500 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:bg-red-900/40 hover:border-red-400 ";
     } else if (!isWorkoutDay) {
       classes += "bg-zinc-950 text-zinc-800 border border-white/[0.02] hover:bg-zinc-900 hover:text-zinc-600 ";
     } else {
@@ -223,7 +219,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = getLocalDateString(d);
       
       const isWorkday = isDateWorkoutDay(d);
       const activity = state.activityLog[dStr];
@@ -254,8 +250,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
 
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
-      const dateStr = `${viewDate.getFullYear()}-${(viewDate.getMonth() + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-      const isToday = dateStr === now.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(date);
+      const isToday = dateStr === todayStr;
       const isWorkday = isDateWorkoutDay(date);
       const status = state.activityLog[dateStr];
       days.push(<div key={d} onClick={() => setSelectedDate(dateStr)} className={getStatusStyle(status, isToday, isWorkday, dateStr)}>{d}</div>);
@@ -283,20 +279,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     const status = state.activityLog[selectedDate];
     const dayHistory = state.workoutHistory.find(h => h.date === selectedDate);
     const dayWeight = state.weightHistory.find(w => w.date === selectedDate);
-    const isToday = selectedDate === now.toISOString().split('T')[0];
+    const isToday = selectedDate === todayStr;
     const rescheduled = state.rescheduledWorkouts?.[selectedDate];
 
+    const metricForDate = state.dailyMetricsHistory.find(m => m.date === selectedDate);
+    const dayMeals = isToday ? state.dailyMeals : (state.mealHistory[selectedDate] || []);
     const dailyKcal = isToday 
       ? state.dailyMeals.reduce((acc, m) => m.checked ? acc + m.calories : acc, 0)
-      : (dayHistory ? 2450 + Math.floor(Math.random() * 200) : 1800 + Math.floor(Math.random() * 200));
+      : (metricForDate?.calories || 0);
     
     const dailyProtein = isToday 
       ? state.dailyMeals.reduce((acc, m) => m.checked ? acc + m.protein : acc, 0)
-      : 180 + Math.floor(Math.random() * 20);
+      : (metricForDate?.protein || 0);
     
     const dailyFiber = isToday 
       ? state.dailyMeals.reduce((acc, m) => m.checked ? acc + m.fiber : acc, 0)
-      : 30 + Math.floor(Math.random() * 10);
+      : (metricForDate?.fiber || 0);
+
+    const dayZpi = metricForDate?.zpi || 0;
+    const dayRank = getRank(dayZpi);
 
     return (
       <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-2xl flex items-end sm:items-center justify-center animate-in fade-in duration-300">
@@ -367,7 +368,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                        <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Rating</p>
                        <div className="flex items-center gap-1">
                           <CheckCircle size={12} className="text-gold" />
-                          <p className="text-xs font-bold uppercase">Rank A</p>
+                          <p className="text-xs font-bold uppercase">Rank {dayRank}</p>
                        </div>
                     </div>
                  </div>
@@ -394,8 +395,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
                    </div>
                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center hover:bg-white/10 hover:border-white/30 transition-all cursor-default">
                       <p className="text-[7px] font-black text-zinc-700 uppercase mb-1">Score</p>
-                      <p className="text-[10px] font-bold">92%</p>
+                      <p className="text-[10px] font-bold">{dayZpi}%</p>
                    </div>
+                </div>
+
+                <div className="space-y-3 mt-4">
+                   {dayMeals.length > 0 ? dayMeals.map((m, i) => (
+                      <div key={i} className={`p-4 rounded-2xl border flex items-center justify-between ${m.checked ? 'bg-gold/5 border-gold/20' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
+                         <div className="flex items-center gap-4">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${m.checked ? 'bg-gold text-black' : 'bg-zinc-900 text-zinc-700'}`}>
+                               {m.checked ? <Check size={14} strokeWidth={3} /> : <Utensils size={14} />}
+                            </div>
+                            <div>
+                               <p className="text-[10px] font-bold uppercase tracking-tight">{m.name}</p>
+                               <p className="text-[8px] text-zinc-600 font-bold uppercase">{m.calories} KCAL | {m.protein}G P</p>
+                            </div>
+                         </div>
+                         {m.checked && <Sparkles size={12} className="text-gold animate-pulse" />}
+                      </div>
+                   )) : (
+                      <div className="p-10 border border-dashed border-white/5 rounded-3xl text-center">
+                         <p className="text-[8px] text-zinc-800 font-black uppercase tracking-[0.4em]">No Nutritional Logs</p>
+                      </div>
+                   )}
                 </div>
              </section>
 
@@ -421,13 +443,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
           <h1 className="text-3xl font-bold gold-text uppercase leading-tight tracking-tight">Hello {state.profile?.name?.split(' ')[0] || 'GUEST'}</h1>
         </div>
         <div className="flex flex-col items-end">
-          <button 
-            onClick={() => setShowBioScan(true)}
-            className="mb-4 p-2 bg-gold/10 border border-gold/20 rounded-lg text-gold hover:bg-gold/20 transition-all flex items-center gap-2"
-          >
-            <Scan size={14} className="animate-pulse" />
-            <span className="text-[8px] font-black uppercase tracking-widest">Bio-Scan</span>
-          </button>
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-black text-gold uppercase tracking-widest">RANK {rank}</span>
             <div className="text-4xl font-bold gold-text leading-none">{score}</div>
@@ -703,7 +718,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
       </section>
       
       {renderDailyRecord()}
-      {showBioScan && <BiologicalScan onClose={() => setShowBioScan(false)} />}
     </div>
   );
 };

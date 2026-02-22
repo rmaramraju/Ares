@@ -2,6 +2,8 @@
   "name": "AresN",
   "description": "An AI-powered elite fitness protocol for specialized training and nutritional optimization.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone",
+    "geolocation"
   ]
 }

@@ -28,6 +28,12 @@ export enum AIPersona {
   ATHENA = 'Athena'
 }
 
+export enum Theme {
+  LIGHT = 'light',
+  DARK = 'dark',
+  SYSTEM = 'system'
+}
+
 export enum SetType {
   NORMAL = 'Normal',
   DROPSET = 'Dropset',
@@ -59,6 +65,7 @@ export interface Exercise {
   targetWeight?: string;
   metadata?: ExerciseMetadata;
   setConfigs?: SetType[];
+  supersetPartner?: Exercise;
 }
 
 export interface WorkoutDay {
@@ -119,6 +126,8 @@ export interface UserProfile {
   joinDate: string;
   planDurationMonths: number;
   restTimerDuration: number;
+  workoutPreference?: string;
+  detailedGoals?: string;
   persona: AIPersona;
 }
 
@@ -130,6 +139,8 @@ export interface ExerciseLog {
   rir: string;
   completed: boolean;
   type: SetType;
+  supersetWeight?: string;
+  supersetReps?: string;
 }
 
 export interface WorkoutHistoryItem {
@@ -146,6 +157,9 @@ export interface DailyMetric {
   volume: number;
   calories: number;
   protein: number;
+  carbs: number;
+  fats: number;
+  fiber: number;
   zpi: number;
   weight?: number;
   hrv?: number;
@@ -170,6 +184,7 @@ export interface AppState {
   workoutPlan: WorkoutDay[] | null; 
   splitStartDate: string | null;
   dailyMeals: Meal[];
+  mealHistory: Record<string, Meal[]>;
   activeWorkout: WorkoutDay | null;
   workoutStartTime: number | null;
   workoutHistory: WorkoutHistoryItem[];
@@ -178,7 +193,9 @@ export interface AppState {
   pinnedMetrics: string[];
   dailyMetricsHistory: DailyMetric[];
   weightHistory: WeightRecord[];
+  lastResetDate: string | null;
   connectedWearables: string[];
   persona: AIPersona | null;
   userExercises: ExerciseMetadata[];
+  theme: Theme;
 }

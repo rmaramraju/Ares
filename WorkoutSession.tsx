@@ -53,7 +53,9 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
         reps: '',
         rir: '',
         completed: false,
-        type: (ex.setConfigs && ex.setConfigs[i]) || SetType.NORMAL
+        type: (ex.setConfigs && ex.setConfigs[i]) || SetType.NORMAL,
+        supersetWeight: ex.supersetPartner ? '' : undefined,
+        supersetReps: ex.supersetPartner ? '' : undefined
       }));
     });
     setExerciseLogs(initialLogs);
@@ -114,8 +116,8 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
     const baseUrl = `https://www.youtube-nocookie.com/embed/${id}`;
     const params = new URLSearchParams({
       autoplay: '1',
-      mute: '1',
-      controls: '0',
+      mute: '0',
+      controls: '1',
       loop: '1',
       playlist: id,
       rel: '0',
@@ -184,7 +186,15 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-3">
                   {isCardio && <Wind className="text-gold" size={16} />}
-                  <h2 className={`text-4xl font-light tracking-tight text-white uppercase leading-tight ${isCardio ? 'text-white' : ''}`}>{currentExercise.name}</h2>
+                  <h2 className={`text-4xl font-light tracking-tight text-white uppercase leading-tight text-center ${isCardio ? 'text-white' : ''}`}>
+                    {currentExercise.name}
+                    {currentExercise.supersetPartner && (
+                      <>
+                        <span className="block text-gold text-lg font-black my-2">&</span>
+                        <span className="block text-2xl opacity-80">{currentExercise.supersetPartner.name}</span>
+                      </>
+                    )}
+                  </h2>
                 </div>
                 <div className="flex items-center justify-center gap-8">
                     <div className="text-center">
@@ -219,77 +229,133 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onCompl
             </Card>
           )}
 
-          <div className={`space-y-4 transition-opacity duration-300 ${isResting ? 'opacity-80' : 'opacity-100'}`}>
+          <div className={`space-y-6 transition-opacity duration-300 ${isResting ? 'opacity-80' : 'opacity-100'}`}>
             {logs.map((log, idx) => {
               const rowDisabled = isResting && !log.completed;
-              return (
-                <div key={idx} className={`grid grid-cols-6 gap-3 items-center p-4 rounded-[28px] border transition-all duration-500 ${log.completed ? 'bg-gold/5 border-gold-solid' : 'bg-white/[0.02] border-white/5'} ${rowDisabled ? 'grayscale-[0.5]' : ''}`}>
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="flex items-center gap-1">
-                        <span className="text-[7px] text-zinc-700 font-bold uppercase">{isCardio ? 'B' : 'S'} {idx+1}</span>
-                        <button 
-                          onMouseEnter={() => setActiveInfo(idx)}
-                          onMouseLeave={() => setActiveInfo(null)}
-                          onClick={() => setActiveInfo(activeInfo === idx ? null : idx)}
-                          className="text-zinc-800 hover:text-gold transition-colors"
-                        >
-                          <HelpCircle size={10} />
-                        </button>
-                    </div>
-                    <div className="relative">
-                        <select 
-                          disabled={isResting}
-                          value={log.type}
-                          onChange={(e) => updateLog(idx, 'type', e.target.value as SetType)}
-                          className={`bg-zinc-900 text-[10px] font-black border rounded-lg px-2 py-1.5 outline-none transition-all appearance-none text-center ${log.type !== SetType.NORMAL ? 'border-gold/40 text-gold' : 'border-white/5 text-zinc-500'} ${isResting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
-                          <option value={SetType.NORMAL}>N</option>
-                          <option value={SetType.DROPSET}>D</option>
-                          <option value={SetType.SUPERSET}>S</option>
-                          <option value={SetType.FAILURE}>F</option>
-                        </select>
-                        {activeInfo === idx && (
-                          <div className="absolute z-50 bottom-full left-0 w-36 mb-2 p-3 bg-zinc-900 border border-white/10 rounded-xl text-[8px] text-zinc-400 leading-tight shadow-2xl animate-in fade-in slide-in-from-bottom-1 pointer-events-none">
-                            <p className="font-bold gold-text mb-1 uppercase tracking-widest">{log.type}</p>
-                            {SET_TYPE_DESCRIPTIONS[log.type]}
-                          </div>
-                        )}
-                    </div>
-                  </div>
+              const isSuperset = !!currentExercise.supersetPartner;
 
-                  <input 
-                    disabled={isResting} 
-                    type="text" 
-                    placeholder={isCardio ? "KM/M" : "KG"} 
-                    value={log.weight} 
-                    onChange={(e) => updateLog(idx, 'weight', e.target.value)} 
-                    className={`col-span-1 w-full bg-black/40 border-none rounded-xl p-3 text-[11px] text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30 ${isResting ? 'opacity-30' : ''}`} 
-                  />
-                  <input 
-                    disabled={isResting} 
-                    type="text" 
-                    placeholder={isCardio ? "TIME" : "RPS"} 
-                    value={log.reps} 
-                    onChange={(e) => updateLog(idx, 'reps', e.target.value)} 
-                    className={`col-span-1 w-full bg-black/40 border-none rounded-xl p-3 text-[11px] text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30 ${isResting ? 'opacity-30' : ''}`} 
-                  />
-                  <input 
-                    disabled={isResting} 
-                    type="text" 
-                    placeholder={isCardio ? "RPE" : "RIR"} 
-                    value={log.rir} 
-                    onChange={(e) => updateLog(idx, 'rir', e.target.value)} 
-                    className={`col-span-1 w-full bg-black/40 border-none rounded-xl p-3 text-[11px] text-center font-bold text-gold outline-none focus:ring-1 focus:ring-gold/30 ${isResting ? 'opacity-30' : ''}`} 
-                  />
-                  
-                  <div className="col-span-2 flex justify-end">
+              return (
+                <div key={idx} className={`flex flex-col gap-6 p-6 rounded-[32px] border transition-all duration-500 ${log.completed ? 'bg-gold/5 border-gold-solid shadow-[0_0_20px_rgba(212,175,55,0.05)]' : 'bg-white/[0.02] border-white/5'} ${rowDisabled ? 'grayscale-[0.5]' : ''}`}>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-zinc-700 font-bold uppercase tracking-[0.2em]">{isCardio ? 'Bout' : 'Set'} {idx+1}</span>
+                      {!isSuperset && (
+                        <div className="relative">
+                          <select 
+                            disabled={isResting}
+                            value={log.type}
+                            onChange={(e) => updateLog(idx, 'type', e.target.value as SetType)}
+                            className={`bg-zinc-900 text-[10px] font-black border rounded-lg px-2 py-1.5 outline-none transition-all appearance-none text-center ${log.type !== SetType.NORMAL ? 'border-gold/40 text-gold' : 'border-white/5 text-zinc-500'}`}
+                          >
+                            <option value={SetType.NORMAL}>NORMAL</option>
+                            <option value={SetType.DROPSET}>DROPSET</option>
+                            <option value={SetType.SUPERSET}>SUPERSET</option>
+                            <option value={SetType.FAILURE}>FAILURE</option>
+                          </select>
+                        </div>
+                      )}
+                      {isSuperset && (
+                        <span className="text-[8px] bg-gold/10 text-gold px-2 py-1 rounded font-black tracking-widest uppercase">Superset</span>
+                      )}
+                    </div>
                     <button 
                       disabled={rowDisabled}
                       onClick={() => updateLog(idx, 'completed', !log.completed)} 
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${log.completed ? 'gold-bg text-black shadow-lg shadow-gold/20 scale-110' : 'bg-zinc-900 text-zinc-700 border border-white/5'} ${rowDisabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${log.completed ? 'gold-bg text-black shadow-lg shadow-gold/20 scale-110' : 'bg-zinc-900 text-zinc-700 border border-white/5'}`}
                     >
-                      {rowDisabled ? <Lock size={14} /> : <Check size={16} strokeWidth={3} />}
+                      {log.completed ? <Check size={20} strokeWidth={3} /> : <Check size={20} strokeWidth={3} className="opacity-20" />}
                     </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {isSuperset ? (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1 truncate">{currentExercise.name} KG</p>
+                            <input 
+                              disabled={isResting} 
+                              type="text" 
+                              placeholder="KG" 
+                              value={log.weight} 
+                              onChange={(e) => updateLog(idx, 'weight', e.target.value)} 
+                              className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1 truncate">{currentExercise.supersetPartner?.name} KG</p>
+                            <input 
+                              disabled={isResting} 
+                              type="text" 
+                              placeholder="KG" 
+                              value={log.supersetWeight || ''} 
+                              onChange={(e) => updateLog(idx, 'supersetWeight', e.target.value)} 
+                              className="w-full bg-gold/5 border border-gold/10 rounded-2xl p-4 text-xs text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30" 
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1">REPS</p>
+                            <input 
+                              disabled={isResting} 
+                              type="text" 
+                              placeholder="REPS" 
+                              value={log.reps} 
+                              onChange={(e) => updateLog(idx, 'reps', e.target.value)} 
+                              className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1">RIR</p>
+                            <input 
+                              disabled={isResting} 
+                              type="text" 
+                              placeholder="RIR" 
+                              value={log.rir} 
+                              onChange={(e) => updateLog(idx, 'rir', e.target.value)} 
+                              className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-bold text-gold outline-none focus:ring-1 focus:ring-gold/30" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-1 space-y-2">
+                          <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1">{isCardio ? 'KM/M' : 'KG'}</p>
+                          <input 
+                            disabled={isResting} 
+                            type="text" 
+                            placeholder={isCardio ? "KM/M" : "KG"} 
+                            value={log.weight} 
+                            onChange={(e) => updateLog(idx, 'weight', e.target.value)} 
+                            className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30" 
+                          />
+                        </div>
+                        <div className="col-span-1 space-y-2">
+                          <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1">{isCardio ? 'TIME' : 'REPS'}</p>
+                          <input 
+                            disabled={isResting} 
+                            type="text" 
+                            placeholder={isCardio ? "TIME" : "REPS"} 
+                            value={log.reps} 
+                            onChange={(e) => updateLog(idx, 'reps', e.target.value)} 
+                            className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-medium text-white outline-none focus:ring-1 focus:ring-gold/30" 
+                          />
+                        </div>
+                        <div className="col-span-1 space-y-2">
+                          <p className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest ml-1">{isCardio ? 'RPE' : 'RIR'}</p>
+                          <input 
+                            disabled={isResting} 
+                            type="text" 
+                            placeholder={isCardio ? "RPE" : "RIR"} 
+                            value={log.rir} 
+                            onChange={(e) => updateLog(idx, 'rir', e.target.value)} 
+                            className="w-full bg-black/40 border-none rounded-2xl p-4 text-xs text-center font-bold text-gold outline-none focus:ring-1 focus:ring-gold/30" 
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

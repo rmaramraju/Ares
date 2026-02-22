@@ -168,11 +168,12 @@ const RadarChart = ({ data }: { data: { name: string, percentage: number }[] }) 
 };
 
 export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack }) => {
+  const getLocalDateString = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const [activeTab, setActiveTab] = useState('Overview');
   const [rangeType, setRangeType] = useState<RangeType>('7D');
   const [customRange, setCustomRange] = useState({ 
-    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
-    end: new Date().toISOString().split('T')[0] 
+    start: getLocalDateString(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)), 
+    end: getLocalDateString(new Date()) 
   });
   const [showRangeModal, setShowRangeModal] = useState(false);
 
@@ -185,7 +186,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     const days = rangeType === '7D' ? 7 : rangeType === '30D' ? 30 : rangeType === '90D' ? 90 : 9999;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const cutoffStr = getLocalDateString(cutoff);
     return state.dailyMetricsHistory.filter(m => m.date >= cutoffStr).sort((a,b) => a.date.localeCompare(b.date));
   }, [state.dailyMetricsHistory, rangeType, customRange]);
 
@@ -196,7 +197,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     const days = rangeType === '7D' ? 7 : rangeType === '30D' ? 30 : rangeType === '90D' ? 90 : 9999;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const cutoffStr = getLocalDateString(cutoff);
     return state.workoutHistory.filter(h => h.date >= cutoffStr).sort((a,b) => a.date.localeCompare(b.date));
   }, [state.workoutHistory, rangeType, customRange]);
 
@@ -207,7 +208,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     const days = rangeType === '7D' ? 7 : rangeType === '30D' ? 30 : rangeType === '90D' ? 90 : 9999;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const cutoffStr = getLocalDateString(cutoff);
     return state.weightHistory.filter(w => w.date >= cutoffStr).sort((a,b) => a.date.localeCompare(b.date));
   }, [state.weightHistory, rangeType, customRange]);
 
@@ -217,7 +218,12 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
       : filteredHistory.map(h => {
           let vol = 0;
           Object.values(h.logs).forEach((sets: any) => {
-            sets.forEach((s: any) => vol += (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0));
+            sets.forEach((s: any) => {
+              vol += (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0);
+              if (s.supersetWeight && s.supersetReps) {
+                vol += (parseFloat(s.supersetWeight) || 0) * (parseFloat(s.supersetReps) || 0);
+              }
+            });
           });
           return vol;
         });
@@ -359,15 +365,20 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
 
   const nutritionStats = useMemo(() => {
     const history = filteredMetrics.map(m => m.calories);
+    const proteinHistory = filteredMetrics.map(m => m.protein);
+    const carbsHistory = filteredMetrics.map(m => m.carbs || 0);
+    const fatsHistory = filteredMetrics.map(m => m.fats || 0);
+    const fiberHistory = filteredMetrics.map(m => m.fiber || 0);
     const dates = filteredMetrics.map(m => m.date.split('-')[2]);
     const lastMetric = filteredMetrics[filteredMetrics.length - 1];
     const totals = lastMetric ? {
       cal: lastMetric.calories,
       p: lastMetric.protein,
-      c: 0, 
-      f: 0
-    } : { cal: 0, p: 0, c: 0, f: 0 };
-    return { history, dates, totals };
+      c: lastMetric.carbs || 0, 
+      f: lastMetric.fats || 0,
+      fiber: lastMetric.fiber || 0
+    } : { cal: 0, p: 0, c: 0, f: 0, fiber: 0 };
+    return { history, proteinHistory, carbsHistory, fatsHistory, fiberHistory, dates, totals };
   }, [filteredMetrics]);
 
   const recoveryStats = useMemo(() => {
@@ -680,6 +691,24 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-4">Caloric Intake History</p>
                 <SimpleLineChart data={nutritionStats.history} target={state.profile?.maintenanceCalories} labels={nutritionStats.dates} />
              </Card>
+             <Card className="p-10 border-white/5 bg-[#080809] hover:bg-white/[0.02] transition-all">
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-4">Protein Progression (G)</p>
+                <SimpleBarChart data={nutritionStats.proteinHistory} color="#D4AF37" labels={nutritionStats.dates} />
+             </Card>
+             <div className="grid grid-cols-3 gap-4">
+                <Card className="p-4 bg-zinc-900/40 border-white/5 text-center">
+                   <p className="text-[7px] text-zinc-600 font-black uppercase mb-1">Carbs</p>
+                   <p className="text-xs font-bold text-white">{nutritionStats.totals.c}G</p>
+                </Card>
+                <Card className="p-4 bg-zinc-900/40 border-white/5 text-center">
+                   <p className="text-[7px] text-zinc-600 font-black uppercase mb-1">Fats</p>
+                   <p className="text-xs font-bold text-white">{nutritionStats.totals.f}G</p>
+                </Card>
+                <Card className="p-4 bg-zinc-900/40 border-white/5 text-center">
+                   <p className="text-[7px] text-zinc-600 font-black uppercase mb-1">Fiber</p>
+                   <p className="text-xs font-bold text-gold">{nutritionStats.totals.fiber}G</p>
+                </Card>
+             </div>
           </div>
         )}
 
