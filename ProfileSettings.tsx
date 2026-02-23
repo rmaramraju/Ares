@@ -55,6 +55,8 @@ interface ProfileSettingsProps {
   onLogWeight: (weight: number) => void;
   onToggleWearable: (id: string) => void;
   onAddCustomExercise: (ex: ExerciseMetadata) => void;
+  onUpdateExercise: (ex: ExerciseMetadata) => void;
+  onDeleteExercise: (id: string) => void;
   onUpdateTheme: (theme: Theme) => void;
   onToggleNav?: (visible: boolean) => void;
 }
@@ -69,7 +71,7 @@ const INTEGRATION_PROVIDERS = [
 
 const MUSCLE_LIST: MuscleGroup[] = ['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'];
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onUpdateTheme, onToggleNav }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onUpdateExercise, onDeleteExercise, onUpdateTheme, onToggleNav }) => {
   const profile = state.profile;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -80,6 +82,9 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
   const [showTerminationConfirm, setShowTerminationConfirm] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [editingExercise, setEditingExercise] = useState<Partial<ExerciseMetadata> | null>(null);
+  const [showWeightInfo, setShowWeightInfo] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -240,6 +245,14 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
     HapticService.notificationSuccess();
   };
 
+  const handleUpdateExerciseInternal = () => {
+    if (!editingExercise || !editingExercise.id) return;
+    onUpdateExercise(editingExercise as ExerciseMetadata);
+    setExpandedExerciseId(null);
+    setEditingExercise(null);
+    HapticService.notificationSuccess();
+  };
+
   if (!profile) return null;
 
   const handleMetricSubmit = () => {
@@ -295,9 +308,23 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
       {/* Biometric Benchmarks */}
       <section className="w-full space-y-6">
         <div className="flex justify-between items-center px-2">
-           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">Biometric Benchmarks</h3>
+           <div className="flex items-center gap-2">
+             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">Biometric Benchmarks</h3>
+             <button onClick={() => setShowWeightInfo(!showWeightInfo)} className="text-zinc-700 hover:text-gold transition-colors">
+               <Info size={12} />
+             </button>
+           </div>
            <Activity size={14} className="text-gold opacity-50" />
         </div>
+
+        {showWeightInfo && (
+          <div className="px-2 py-4 bg-gold/5 border border-gold/10 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+            <p className="text-[8px] text-gold font-bold uppercase tracking-widest leading-relaxed">
+              Log your weight daily, every 3 days, or weekly. This telemetry powers the weight metrics in your analytics suite to track progress over time.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <Card onClick={() => { HapticService.selection(); setMetricValue(profile.weight); setShowEditMetric('weight'); }} className="p-8 flex flex-col items-center gap-4 border-white/5 bg-zinc-900/20 group hover:border-gold/40 transition-all tap-feedback">
              <Scale size={20} className="text-zinc-500 group-hover:text-gold transition-colors" />
@@ -515,28 +542,132 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
               </div>
            </div>
 
-           <div className="p-8 flex-1 overflow-y-auto space-y-4 no-scrollbar pb-32">
-             {filteredExercises.length > 0 ? filteredExercises.map(ex => (
-               <Card key={ex.id} className="bg-zinc-900/20 border-white/5 p-6 flex justify-between items-center group hover:border-gold/20 transition-all">
-                 <div className="flex gap-6 items-center">
-                   <div className="w-16 h-16 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-zinc-700 overflow-hidden relative">
-                     {ex.youtubeId ? (
-                       <img src={ex.animationUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt={ex.name} />
-                     ) : (
-                       <Youtube size={24} className="text-zinc-800 opacity-20" />
-                     )}
-                   </div>
-                   <div>
-                     <h5 className="font-bold text-sm uppercase tracking-tight group-hover:gold-text transition-colors">{ex.name}</h5>
-                     <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mt-1">{ex.primaryMuscle} | {ex.category}</p>
-                   </div>
-                 </div>
-                 <div className="flex items-center gap-4">
-                   {ex.id.startsWith('custom-') && <span className="px-2 py-0.5 bg-gold/10 text-gold text-[6px] font-black rounded border border-gold/20 uppercase">USER</span>}
-                   <Info className="text-zinc-800 group-hover:text-gold" size={16} />
-                 </div>
-               </Card>
-             )) : (
+            <div className="p-8 flex-1 overflow-y-auto space-y-4 no-scrollbar pb-32">
+              {filteredExercises.length > 0 ? filteredExercises.map(ex => {
+                const isExpanded = expandedExerciseId === ex.id;
+                const isCustom = ex.id.startsWith('custom-');
+                
+                return (
+                  <Card key={ex.id} className={`bg-zinc-900/20 border-white/5 transition-all overflow-hidden ${isExpanded ? 'ring-1 ring-gold/30' : 'hover:border-gold/20'}`}>
+                    <div 
+                      onClick={() => {
+                        HapticService.selection();
+                        if (isExpanded) {
+                          setExpandedExerciseId(null);
+                          setEditingExercise(null);
+                        } else {
+                          setExpandedExerciseId(ex.id);
+                          setEditingExercise(ex);
+                        }
+                      }}
+                      className="p-6 flex justify-between items-center cursor-pointer group"
+                    >
+                      <div className="flex gap-6 items-center">
+                        <div className="w-16 h-16 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-zinc-700 overflow-hidden relative">
+                          {ex.youtubeId ? (
+                            <img src={ex.animationUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt={ex.name} />
+                          ) : (
+                            <Youtube size={24} className="text-zinc-800 opacity-20" />
+                          )}
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-sm uppercase tracking-tight group-hover:gold-text transition-colors">{ex.name}</h5>
+                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mt-1">{ex.primaryMuscle} | {ex.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {isCustom && <span className="px-2 py-0.5 bg-gold/10 text-gold text-[6px] font-black rounded border border-gold/20 uppercase">USER</span>}
+                        {isExpanded ? <ChevronUp className="text-gold" size={16} /> : <ChevronDown className="text-zinc-800 group-hover:text-gold" size={16} />}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="px-6 pb-6 pt-2 space-y-6 border-t border-white/5 animate-in slide-in-from-top-4 duration-300">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Name</label>
+                            <input 
+                              disabled={!isCustom}
+                              className="w-full bg-zinc-950 border border-white/5 p-4 rounded-xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase tracking-widest disabled:opacity-50"
+                              value={editingExercise?.name}
+                              onChange={e => setEditingExercise(prev => prev ? {...prev, name: e.target.value} : null)}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Muscle</label>
+                              <select 
+                                disabled={!isCustom}
+                                className="w-full bg-zinc-950 border border-white/5 p-4 rounded-xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase disabled:opacity-50"
+                                value={editingExercise?.primaryMuscle}
+                                onChange={e => setEditingExercise(prev => prev ? {...prev, primaryMuscle: e.target.value as MuscleGroup} : null)}
+                              >
+                                {MUSCLE_LIST.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Class</label>
+                              <select 
+                                disabled={!isCustom}
+                                className="w-full bg-zinc-950 border border-white/5 p-4 rounded-xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase disabled:opacity-50"
+                                value={editingExercise?.category}
+                                onChange={e => setEditingExercise(prev => prev ? {...prev, category: e.target.value} : null)}
+                              >
+                                <option value="Compound">COMPOUND</option>
+                                <option value="Isolation">ISOLATION</option>
+                                <option value="Cardio">CARDIO</option>
+                                <option value="HIIT">HIIT</option>
+                                <option value="Recovery">RECOVERY</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest ml-1">YouTube Link</label>
+                            <div className="relative">
+                              <Youtube size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700" />
+                              <input 
+                                disabled={!isCustom}
+                                className="w-full bg-zinc-950 border border-white/5 p-4 pl-12 rounded-xl text-[10px] font-bold text-zinc-400 outline-none focus:border-gold tracking-widest disabled:opacity-50"
+                                placeholder="HTTPS://YOUTU.BE/..."
+                                value={editingExercise?.youtubeId ? `https://youtu.be/${editingExercise.youtubeId}` : ''}
+                                onChange={e => {
+                                  const id = extractYoutubeId(e.target.value);
+                                  setEditingExercise(prev => prev ? {...prev, youtubeId: id, animationUrl: id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : ''} : null);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          {isCustom ? (
+                            <>
+                              <button 
+                                onClick={() => { HapticService.impactHeavy(); onDeleteExercise(ex.id); setExpandedExerciseId(null); }}
+                                className="flex-1 py-4 bg-red-500/10 border border-red-500/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Trash2 size={12} /> Delete Module
+                              </button>
+                              <button 
+                                onClick={handleUpdateExerciseInternal}
+                                className="flex-1 py-4 gold-metallic rounded-xl text-[8px] font-black uppercase tracking-widest text-black shadow-lg shadow-gold/20 flex items-center justify-center gap-2"
+                              >
+                                <Save size={12} /> Save Changes
+                              </button>
+                            </>
+                          ) : (
+                            <p className="w-full text-center text-[7px] text-zinc-700 uppercase tracking-widest py-2 italic">
+                              System modules are read-only. Create custom modules for full control.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              }) : (
                 <div className="flex flex-col items-center justify-center py-20 text-zinc-800 gap-4">
                    <Search size={40} className="opacity-10" />
                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">Zero Results in Archive</p>

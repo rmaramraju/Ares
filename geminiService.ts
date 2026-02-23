@@ -6,6 +6,9 @@ export const generateFitnessPlan = async (profile: UserProfile) => {
 
   const prompt = `Act as an elite sports scientist and nutritionist. Architect a scientifically-optimized fitness and nutrition protocol for a ${profile.age}y/o ${profile.gender} ${profile.bodyType}.
     PRIMARY GOAL: ${profile.goal}.
+    EXPERIENCE LEVEL: ${profile.experienceLevel || "Intermediate"}.
+    TRAINING AGE: ${profile.yearsLifting || 0} years.
+    ATHLETIC BACKGROUND: ${profile.athleticBackground ? "Yes" : "No"}.
     DETAILED GOALS: ${profile.detailedGoals || "Not specified"}.
     WORKOUT PREFERENCE: ${profile.workoutPreference || "Not specified"}.
     COMMITMENT: ${profile.gymDaysPerWeek} dedicated gym days per week.

@@ -382,6 +382,20 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleUpdateExercise = (ex: ExerciseMetadata) => {
+    setState(prev => ({
+      ...prev,
+      userExercises: prev.userExercises.map(x => x.id === ex.id ? ex : x)
+    }));
+  };
+
+  const handleDeleteExercise = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      userExercises: prev.userExercises.filter(x => x.id !== id)
+    }));
+  };
+
   const activeRoutine = useMemo(() => {
     return state.routines.find(r => r.id === state.activeRoutineId) || state.routines[0] || null;
   }, [state.routines, state.activeRoutineId]);
@@ -468,6 +482,8 @@ const App: React.FC = () => {
             }} 
             onToggleWearable={handleWearableToggle} 
             onAddCustomExercise={handleAddCustomExercise}
+            onUpdateExercise={handleUpdateExercise}
+            onDeleteExercise={handleDeleteExercise}
             onToggleNav={setIsNavVisible}
             onUpdateTheme={(t) => setState(prev => ({ ...prev, theme: t }))}
           />

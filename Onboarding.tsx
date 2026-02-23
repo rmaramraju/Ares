@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BodyType, Goal, Gender, UserProfile, UnitSystem } from './types.ts';
+import { BodyType, Goal, Gender, UserProfile, UnitSystem, ExperienceLevel } from './types.ts';
 import { generateFitnessPlan } from './geminiService.ts';
 import { Card } from './components/Card.tsx';
 import { HapticService } from './hapticService.ts';
@@ -36,6 +36,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     cuisinePreference: 'Clean Modern',
     workoutPreference: 'Strength + Cardio',
     detailedGoals: '',
+    experienceLevel: ExperienceLevel.BEGINNER,
+    yearsLifting: 0,
+    athleticBackground: false,
   });
 
   const calculateMaintenance = () => {
@@ -304,29 +307,58 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
           {step === 5 && (
             <div className="space-y-10 reveal">
-              <div className="space-y-4 stagger-1">
+              <div className="grid grid-cols-2 gap-4 stagger-1">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Experience</label>
+                  <select 
+                    className="w-full p-5 bg-zinc-900 border border-white/5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none"
+                    value={formData.experienceLevel}
+                    onChange={e => setFormData({...formData, experienceLevel: e.target.value as ExperienceLevel})}
+                  >
+                    {Object.values(ExperienceLevel).map(lvl => <option key={lvl} value={lvl}>{lvl.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Years Lifting</label>
+                  <input 
+                    type="number"
+                    className="w-full p-5 bg-zinc-900 border border-white/5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase"
+                    value={formData.yearsLifting}
+                    onChange={e => setFormData({...formData, yearsLifting: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-6 bg-zinc-900 border border-white/5 rounded-2xl stagger-1.5">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Athletic Background</p>
+                  <p className="text-[8px] text-zinc-600 uppercase">Competitive sports history?</p>
+                </div>
+                <button 
+                  onClick={() => { HapticService.selection(); setFormData({...formData, athleticBackground: !formData.athleticBackground}); }}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.athleticBackground ? 'bg-gold' : 'bg-zinc-800'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.athleticBackground ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+
+              <div className="space-y-4 stagger-2">
                 <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Detailed Objectives</label>
                 <textarea 
-                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.detailedGoals?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all min-h-[120px] resize-none`}
-                  placeholder="E.G. INCREASE BENCH PRESS, LOSE 5KG FAT, IMPROVE STAMINA"
+                  className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.detailedGoals?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all min-h-[100px] resize-none`}
+                  placeholder="E.G. INCREASE BENCH PRESS, LOSE 5KG FAT"
                   value={formData.detailedGoals}
                   onChange={e => setFormData({...formData, detailedGoals: e.target.value})}
                 />
               </div>
-              <div className="space-y-4 stagger-2">
+              <div className="space-y-4 stagger-2.5">
                 <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Workout Modality</label>
                 <input 
                   className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.workoutPreference?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm tracking-widest outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`}
-                  placeholder="E.G. CARDIO + STRENGTH, HIIT, POWERLIFTING"
+                  placeholder="E.G. CARDIO + STRENGTH, HIIT"
                   value={formData.workoutPreference}
                   onChange={e => setFormData({...formData, workoutPreference: e.target.value})}
                 />
-              </div>
-              <div className="p-8 rounded-[40px] border border-white/5 bg-zinc-900 flex items-center gap-6 stagger-3">
-                <Sparkles className="text-gold opacity-40" size={24} strokeWidth={1.5} />
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold uppercase tracking-widest">
-                  Ares AI will architect your protocol based on these specific parameters.
-                </p>
               </div>
             </div>
           )}

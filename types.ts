@@ -1,4 +1,10 @@
 
+export enum ExperienceLevel {
+  BEGINNER = 'Beginner',
+  INTERMEDIATE = 'Intermediate',
+  ADVANCED = 'Advanced'
+}
+
 export enum BodyType {
   ECTOMORPH = 'Ectomorph',
   ENDOMORPH = 'Endomorph',
@@ -128,6 +134,9 @@ export interface UserProfile {
   restTimerDuration: number;
   workoutPreference?: string;
   detailedGoals?: string;
+  experienceLevel?: ExperienceLevel;
+  yearsLifting?: number;
+  athleticBackground?: boolean;
   persona: AIPersona;
 }
 
