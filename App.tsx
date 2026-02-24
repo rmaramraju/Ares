@@ -29,6 +29,9 @@ const App: React.FC = () => {
     activeRoutineId: null,
     workoutPlan: null,
     splitStartDate: null,
+    dietStartDate: null,
+    dietHistory: [],
+    baseDiet: [],
     dailyMeals: [],
     mealHistory: {},
     activeWorkout: null,
@@ -39,6 +42,7 @@ const App: React.FC = () => {
     pinnedMetrics: ['zpi-trend', 'volume-progression'],
     dailyMetricsHistory: [],
     weightHistory: [],
+    waistHistory: [],
     lastResetDate: null,
     connectedWearables: [],
     persona: AIPersona.ARES,
@@ -50,7 +54,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       const restored = await AresSyncEngine.loadState();
-      if (restored) setState(restored);
+      if (restored) {
+        setState(prev => ({
+          ...prev,
+          ...restored,
+          dietHistory: restored.dietHistory || [],
+          userExercises: restored.userExercises || [],
+          dailyMetricsHistory: restored.dailyMetricsHistory || [],
+          weightHistory: restored.weightHistory || []
+        }));
+      }
     };
     init();
   }, []);
@@ -79,11 +92,17 @@ const App: React.FC = () => {
         const lastDate = prev.lastResetDate;
         const newMealHistory = lastDate ? { ...prev.mealHistory, [lastDate]: prev.dailyMeals } : prev.mealHistory;
         
+        // If we have a base diet, use it to reset daily meals. 
+        // Otherwise, just reset the checked status of existing meals.
+        const resetMeals = prev.baseDiet.length > 0 
+          ? prev.baseDiet.map(m => ({ ...m, checked: false }))
+          : prev.dailyMeals.map(m => ({ ...m, checked: false }));
+
         return {
           ...prev,
           lastResetDate: today,
           mealHistory: newMealHistory,
-          dailyMeals: prev.dailyMeals.map(m => ({ ...m, checked: false })),
+          dailyMeals: resetMeals,
           activeWorkout: prev.activeWorkout ? (prev.activeWorkout.id.startsWith('custom-') ? null : prev.activeWorkout) : null
         };
       });
@@ -115,6 +134,10 @@ const App: React.FC = () => {
     const totalCarbs = todaysMeals.reduce((acc, m) => acc + m.carbs, 0);
     const totalFats = todaysMeals.reduce((acc, m) => acc + m.fats, 0);
     const totalFiber = todaysMeals.reduce((acc, m) => acc + m.fiber, 0);
+
+    const latestWaist = state.waistHistory.length > 0 
+      ? state.waistHistory[state.waistHistory.length - 1].value 
+      : undefined;
 
     const volumeTarget = 5000; 
     const proteinTarget = state.profile?.targetProtein || 180;
@@ -171,6 +194,7 @@ const App: React.FC = () => {
       fiber: totalFiber,
       zpi: Math.round(vScore + pScore),
       weight: state.profile?.weight,
+      waist: latestWaist,
       ...recoveryData
     };
 
@@ -297,6 +321,8 @@ const App: React.FC = () => {
       activeRoutineId: null,
       workoutPlan: null,
       splitStartDate: null,
+      dietStartDate: null,
+      dietHistory: [],
       dailyMeals: [],
       mealHistory: {},
       activeWorkout: null,
@@ -307,6 +333,8 @@ const App: React.FC = () => {
       pinnedMetrics: ['zpi-trend', 'volume-progression'],
       dailyMetricsHistory: [],
       weightHistory: [],
+      waistHistory: [],
+      baseDiet: [],
       lastResetDate: null,
       connectedWearables: [],
       persona: AIPersona.ARES,
@@ -383,10 +411,40 @@ const App: React.FC = () => {
   };
 
   const handleUpdateExercise = (ex: ExerciseMetadata) => {
+    setState(prev => {
+      const exists = prev.userExercises.some(x => x.id === ex.id);
+      if (exists) {
+        return {
+          ...prev,
+          userExercises: prev.userExercises.map(x => x.id === ex.id ? ex : x)
+        };
+      } else {
+        return {
+          ...prev,
+          userExercises: [...prev.userExercises, ex]
+        };
+      }
+    });
+  };
+
+  const handleRegenerateDiet = (newMeals: Meal[]) => {
+    HapticService.notificationSuccess();
+    const today = getLocalDateString(new Date());
     setState(prev => ({
       ...prev,
-      userExercises: prev.userExercises.map(x => x.id === ex.id ? ex : x)
+      dietStartDate: today,
+      dietHistory: [
+        ...(prev.dietHistory || []),
+        {
+          date: today,
+          meals: prev.dailyMeals,
+          profile: prev.profile!
+        }
+      ],
+      dailyMeals: newMeals,
+      baseDiet: newMeals // Set as base diet automatically when regenerating
     }));
+    setTimeout(updateDailyMetrics, 100);
   };
 
   const handleDeleteExercise = (id: string) => {
@@ -433,20 +491,30 @@ const App: React.FC = () => {
             } }
             onDelete={(id) => { 
               HapticService.impactHeavy(); 
-              setState(prev => ({ ...prev, dailyMeals: prev.dailyMeals.filter(m => m.id !== id) }));
+              setState(prev => ({ ...prev, dailyMeals: prev.dailyMeals.filter(m => m.id !== id), baseDiet: prev.baseDiet.filter(m => m.id !== id) }));
               setTimeout(updateDailyMetrics, 100);
             } }
-            onAdd={(m) => { 
+            onAdd={(m, isPermanent) => { 
               HapticService.notificationSuccess(); 
-              setState(prev => ({ ...prev, dailyMeals: [...prev.dailyMeals, { ...m, id: Math.random().toString(36).substr(2, 9), checked: false }] }));
+              const newMeal = { ...m, id: Math.random().toString(36).substr(2, 9), checked: false };
+              setState(prev => ({ 
+                ...prev, 
+                dailyMeals: [...prev.dailyMeals, newMeal],
+                baseDiet: isPermanent ? [...prev.baseDiet, newMeal] : prev.baseDiet
+              }));
               setTimeout(updateDailyMetrics, 100);
             } }
             onUpdateMeal={(m) => { 
               HapticService.impactMedium(); 
-              setState(prev => ({ ...prev, dailyMeals: prev.dailyMeals.map(x => x.id === m.id ? m : x) }));
+              setState(prev => ({ 
+                ...prev, 
+                dailyMeals: prev.dailyMeals.map(x => x.id === m.id ? m : x),
+                baseDiet: prev.baseDiet.map(x => x.id === m.id ? m : x)
+              }));
               setTimeout(updateDailyMetrics, 100);
             } }
             onUpdateProfile={(p) => setState(prev => ({ ...prev, profile: p }))}
+            onRegenerateDiet={handleRegenerateDiet}
             onBack={() => { HapticService.impactLight(); setState(s => ({ ...s, currentView: 'workouts' })); }} 
           />
         )}
@@ -455,6 +523,8 @@ const App: React.FC = () => {
           <WorkoutEditor 
             routines={state.routines || []} activeRoutineId={state.activeRoutineId} startDate={state.splitStartDate || getLocalDateString(new Date())}
             userExercises={state.userExercises}
+            onAddCustomExercise={handleAddCustomExercise}
+            onUpdateExercise={handleUpdateExercise}
             onSave={(updatedRoutines, activeId, date, duration) => { 
               HapticService.notificationSuccess(); 
               setState(prev => ({ 
@@ -480,6 +550,12 @@ const App: React.FC = () => {
               setState(prev => ({ ...prev, profile: prev.profile ? { ...prev.profile, weight: w } : null, weightHistory: [...(prev.weightHistory || []), { date: t, weight: w }] }));
               setTimeout(updateDailyMetrics, 100);
             }} 
+            onLogWaist={(v) => {
+              HapticService.notificationSuccess();
+              const t = getLocalDateString(new Date());
+              setState(prev => ({ ...prev, waistHistory: [...(prev.waistHistory || []), { date: t, value: v }] }));
+              setTimeout(updateDailyMetrics, 100);
+            }}
             onToggleWearable={handleWearableToggle} 
             onAddCustomExercise={handleAddCustomExercise}
             onUpdateExercise={handleUpdateExercise}

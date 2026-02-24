@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BodyType, Goal, Gender, UserProfile, UnitSystem, ExperienceLevel } from './types.ts';
+import { BodyType, Goal, Gender, UserProfile, UnitSystem, ExperienceLevel, AIPersona } from './types.ts';
 import { generateFitnessPlan } from './geminiService.ts';
 import { Card } from './components/Card.tsx';
 import { HapticService } from './hapticService.ts';
@@ -13,7 +13,7 @@ interface OnboardingProps {
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorVisible, setErrorVisible] = useState(false);
@@ -39,6 +39,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     experienceLevel: ExperienceLevel.BEGINNER,
     yearsLifting: 0,
     athleticBackground: false,
+    persona: AIPersona.ARES,
   });
 
   const calculateMaintenance = () => {
@@ -65,6 +66,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   };
 
   const validateStep = () => {
+    if (step === 0) {
+      return !!formData.persona;
+    }
     if (step === 1) {
       return formData.name?.trim() !== '' && (formData.weight || 0) > 0 && (formData.height || 0) > 0 && (formData.age || 0) > 0;
     }
@@ -122,6 +126,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
     HapticService.impactLight();
     if (step < 5) {
+      // Apply theme immediately if persona selected
+      if (step === 0) {
+        const root = document.documentElement;
+        if (formData.persona === AIPersona.ATHENA) {
+          root.classList.add('theme-athena');
+        } else {
+          root.classList.remove('theme-athena');
+        }
+      }
       setStep(step + 1);
     } else if (step === 5) {
       setLoading(true);
@@ -164,14 +177,43 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       <div className="w-full max-w-md flex flex-col h-full space-y-12 pb-20">
         
         <header className="mt-16 text-center space-y-4 reveal stagger-1">
-          <Crown className="text-[#C5A059] mx-auto opacity-70" size={32} strokeWidth={1.5} />
+          <Crown className="text-gold mx-auto opacity-70" size={32} strokeWidth={1.5} />
           <div className="space-y-1">
-            <h1 className="text-2xl font-light tracking-[0.3em] text-white uppercase">Ares Protocol</h1>
+            <h1 className="text-2xl font-light tracking-[0.3em] text-white uppercase">{formData.persona || 'Ares'} Protocol</h1>
             <p className="text-zinc-600 text-[10px] font-bold tracking-[0.5em] uppercase">Sequence Phase {step} / 6</p>
           </div>
         </header>
 
         <div className={`flex-1 space-y-8 transition-all ${errorVisible ? 'animate-shake' : ''}`}>
+          {step === 0 && (
+            <div className="space-y-10 reveal">
+              <div className="text-center space-y-2">
+                <h3 className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em]">Select Your Trainer</h3>
+                <p className="text-[8px] text-zinc-800 uppercase tracking-widest">Choose your biological optimization architect</p>
+              </div>
+              <div className="grid grid-cols-1 gap-6">
+                {[
+                  { id: AIPersona.ARES, desc: 'High-density hypertrophy & mechanical load specialist.', color: 'border-gold/30', active: 'bg-gold text-black border-gold shadow-gold/20' },
+                  { id: AIPersona.ATHENA, desc: 'Neural efficiency & structural symmetry architect.', color: 'border-zinc-500/30', active: 'bg-zinc-300 text-black border-zinc-300 shadow-white/10' }
+                ].map((p, i) => (
+                  <button 
+                    key={p.id}
+                    onClick={() => { HapticService.impactHeavy(); setFormData({...formData, persona: p.id}); }}
+                    className={`p-8 rounded-[32px] border text-left space-y-3 transition-all duration-500 stagger-${i+1} ${formData.persona === p.id ? p.active + ' scale-[1.02] shadow-2xl' : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xl font-black uppercase tracking-widest">{p.id}</span>
+                      {formData.persona === p.id && <Sparkles size={18} />}
+                    </div>
+                    <p className={`text-[10px] leading-relaxed uppercase tracking-widest font-bold ${formData.persona === p.id ? 'text-black/60' : 'text-zinc-700'}`}>
+                      {p.desc}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {step === 1 && (
             <div className="space-y-10 reveal">
               <div className="space-y-4 stagger-1">
@@ -297,9 +339,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 <input className={`w-full p-6 bg-zinc-900 border ${errorVisible && !formData.cuisinePreference?.trim() ? 'border-gold/30' : 'border-white/5'} rounded-2xl text-sm outline-none text-white placeholder:text-zinc-800 uppercase focus:border-gold-solid transition-all`} placeholder="E.G. CLEAN MODERN" value={formData.cuisinePreference} onChange={e => setFormData({...formData, cuisinePreference: e.target.value})} />
               </div>
               <div className="p-8 rounded-[40px] border border-white/5 bg-zinc-900 flex items-start gap-6 stagger-2">
-                <Dumbbell className="text-[#C5A059] opacity-40 mt-1" size={24} strokeWidth={1.5} />
+                <Dumbbell className="text-gold opacity-40 mt-1" size={24} strokeWidth={1.5} />
                 <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold uppercase tracking-widest">
-                  Deploying Ares Protocol for high-density hypertrophy. Biological and neural optimization ready.
+                  Deploying {formData.persona} Protocol for high-density hypertrophy. Biological and neural optimization ready.
                 </p>
               </div>
             </div>
@@ -427,7 +469,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               ) : (
                 <>
                   <Sparkles size={16} className="text-black" />
-                  <span className="text-[11px] tracking-[0.3em] uppercase">Build with Ares AI</span>
+                  <span className="text-[11px] tracking-[0.3em] uppercase">Build with {formData.persona} AI</span>
                   <ChevronRight size={16} strokeWidth={3} />
                 </>
               )}

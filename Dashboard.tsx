@@ -88,6 +88,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
     const dayOfWeek = date.getDay();
     if (!state.profile.selectedDays.includes(dayOfWeek)) return null;
 
+    // Temporal Sync Logic: If splitStartDate exists, calculate rotation based on training days passed
+    if (state.splitStartDate) {
+      const start = new Date(state.splitStartDate);
+      start.setHours(0, 0, 0, 0);
+      const target = new Date(date);
+      target.setHours(0, 0, 0, 0);
+      
+      if (target >= start) {
+        let trainingDaysCount = 0;
+        const current = new Date(start);
+        while (current <= target) {
+          if (state.profile.selectedDays.includes(current.getDay())) {
+            trainingDaysCount++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        if (trainingDaysCount > 0) {
+          return state.workoutPlan[(trainingDaysCount - 1) % state.workoutPlan.length];
+        }
+      }
+    }
+
     const sortedDays = [...state.profile.selectedDays].sort();
     const phaseIndex = sortedDays.indexOf(dayOfWeek);
     

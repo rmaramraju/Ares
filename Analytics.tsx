@@ -271,6 +271,23 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     return { history, dates, leanMassHistory, velocity };
   }, [filteredWeight, state.profile]);
 
+  const waistData = useMemo(() => {
+    const filteredWaist = state.waistHistory.filter(w => {
+      if (rangeType === 'CUSTOM' && customRange.start && customRange.end) {
+        return w.date >= customRange.start && w.date <= customRange.end;
+      }
+      const days = rangeType === '7D' ? 7 : rangeType === '30D' ? 30 : rangeType === '90D' ? 90 : 9999;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = getLocalDateString(cutoff);
+      return w.date >= cutoffStr;
+    }).sort((a,b) => a.date.localeCompare(b.date));
+
+    const history = filteredWaist.map(w => w.value);
+    const dates = filteredWaist.map(w => w.date.split('-')[2]);
+    return { history, dates };
+  }, [state.waistHistory, rangeType, customRange]);
+
   const oracleData = useMemo(() => {
     const currentWeight = weightData.history[weightData.history.length - 1] || state.profile?.weight || 0;
     const targetWeight = state.profile?.goalWeight || 0;
@@ -411,6 +428,72 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
       dates 
     };
   }, [filteredMetrics]);
+
+  const dietImpact = useMemo(() => {
+    if (!state.dietHistory || state.dietHistory.length === 0 || !state.dietStartDate) return null;
+
+    const lastChangeDate = state.dietStartDate;
+    
+    // Metrics before change (last 14 days before change)
+    const beforeMetrics = state.dailyMetricsHistory
+      .filter(m => m.date < lastChangeDate)
+      .slice(-14);
+    
+    // Metrics after change
+    const afterMetrics = state.dailyMetricsHistory
+      .filter(m => m.date >= lastChangeDate);
+
+    if (beforeMetrics.length < 3 || afterMetrics.length < 3) return null;
+
+    const avgZpiBefore = beforeMetrics.reduce((acc, m) => acc + m.zpi, 0) / beforeMetrics.length;
+    const avgZpiAfter = afterMetrics.reduce((acc, m) => acc + m.zpi, 0) / afterMetrics.length;
+    
+    const zpiDiff = avgZpiAfter - avgZpiBefore;
+    const zpiPercent = (zpiDiff / avgZpiBefore) * 100;
+
+    // Weight velocity comparison
+    const beforeWeights = state.weightHistory.filter(w => w.date < lastChangeDate).slice(-14);
+    const afterWeights = state.weightHistory.filter(w => w.date >= lastChangeDate);
+
+    let velocityBefore = 0;
+    if (beforeWeights.length > 1) {
+      velocityBefore = (beforeWeights[beforeWeights.length - 1].weight - beforeWeights[0].weight) / Math.max(1, beforeWeights.length / 7);
+    }
+
+    let velocityAfter = 0;
+    if (afterWeights.length > 1) {
+      velocityAfter = (afterWeights[afterWeights.length - 1].weight - afterWeights[0].weight) / Math.max(1, afterWeights.length / 7);
+    }
+
+    const goal = state.profile?.goal;
+    let effectiveness: 'IMPROVED' | 'STAGNANT' | 'DECLINING' = 'STAGNANT';
+    let statusColor = 'text-zinc-500';
+    let statusBg = 'bg-zinc-500/10';
+
+    const isImprovingZpi = zpiDiff > 2;
+    const isDecliningZpi = zpiDiff < -5;
+
+    if (isImprovingZpi) {
+      effectiveness = 'IMPROVED';
+      statusColor = 'text-gold';
+      statusBg = 'bg-gold/10';
+    } else if (isDecliningZpi) {
+      effectiveness = 'DECLINING';
+      statusColor = 'text-red-500';
+      statusBg = 'bg-red-500/10';
+    }
+
+    return {
+      effectiveness,
+      statusColor,
+      statusBg,
+      zpiPercent,
+      zpiDiff,
+      velocityBefore,
+      velocityAfter,
+      lastChangeDate
+    };
+  }, [state.dietHistory, state.dietStartDate, state.dailyMetricsHistory, state.weightHistory, state.profile]);
 
   const handleRangeSelect = (type: RangeType) => {
     HapticService.selection();
@@ -668,6 +751,17 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
              <Card className="p-10 border-white/5 bg-[#080809] hover:bg-white/[0.02] transition-all">
                 <SimpleLineChart data={weightData.history} target={state.profile?.goalWeight} color="#D4AF37" labels={weightData.dates} />
              </Card>
+
+             <section className="space-y-6">
+                <div className="flex justify-between items-center px-2">
+                   <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Waist Circumference</h3>
+                   <Activity size={14} className="text-gold opacity-40" />
+                </div>
+                <Card className="p-10 border-white/5 bg-[#080809] hover:bg-white/[0.02] transition-all">
+                   <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">Waist Trajectory ({isMetric ? 'CM' : 'IN'})</p>
+                   <SimpleLineChart data={waistData.history} color="#D4AF37" labels={waistData.dates} />
+                </Card>
+             </section>
           </div>
         )}
 
@@ -677,6 +771,60 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                 <h3 className="text-[10px] font-bold text-gold uppercase tracking-[0.4em]">Fuel Diagnostics</h3>
                 <p className="text-xs text-zinc-500 font-light">Nutrient partition adherence and caloric history.</p>
              </header>
+
+             {dietImpact && (
+               <Card className="p-8 border-gold/20 bg-gold/5 space-y-6 animate-in slide-in-from-top-4 duration-500">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={12} className="text-gold" />
+                        <p className="text-[10px] text-gold font-bold uppercase tracking-[0.3em]">Dietary Shift Analysis</p>
+                      </div>
+                      <h4 className="text-xl font-black uppercase tracking-tight">Post-Transition Impact</h4>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full ${dietImpact.statusBg} ${dietImpact.statusColor} text-[8px] font-black uppercase tracking-widest border border-current/20`}>
+                      {dietImpact.effectiveness}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">ZPI Performance Delta</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className={`text-2xl font-black tabular-nums ${dietImpact.zpiDiff >= 0 ? 'text-gold' : 'text-red-500'}`}>
+                          {dietImpact.zpiDiff >= 0 ? '+' : ''}{dietImpact.zpiDiff.toFixed(1)}
+                        </span>
+                        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Points</span>
+                      </div>
+                      <p className="text-[7px] text-zinc-700 font-medium uppercase tracking-widest">
+                        {dietImpact.zpiPercent >= 0 ? 'Efficiency improved' : 'Metabolic decline'} by {Math.abs(dietImpact.zpiPercent).toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">Weight Velocity Shift</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-white tabular-nums">
+                          {dietImpact.velocityAfter.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">{isMetric ? 'KG' : 'LB'}/WK</span>
+                      </div>
+                      <p className="text-[7px] text-zinc-700 font-medium uppercase tracking-widest">
+                        PREVIOUS: {dietImpact.velocityBefore.toFixed(2)} {isMetric ? 'KG' : 'LB'}/WK
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gold/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={10} className="text-zinc-600" />
+                      <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">Protocol Active Since: {dietImpact.lastChangeDate}</p>
+                    </div>
+                    <Info size={12} className="text-gold/40" />
+                  </div>
+               </Card>
+             )}
+
              <div className="grid grid-cols-2 gap-4">
                 <Card className="p-6 bg-zinc-900/40 border-white/5 text-center hover:bg-white/[0.04] transition-all">
                    <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mb-1">Last Caloric Entry</p>

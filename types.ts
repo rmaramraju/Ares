@@ -99,6 +99,7 @@ export interface Meal {
   fats: number;
   fiber: number;
   checked: boolean;
+  cookingInstructions?: string;
 }
 
 export interface WeightRecord {
@@ -171,6 +172,7 @@ export interface DailyMetric {
   fiber: number;
   zpi: number;
   weight?: number;
+  waist?: number;
   hrv?: number;
   readiness?: number;
   sleepHours?: number;
@@ -180,6 +182,12 @@ export interface DailyMetric {
   sleepStages?: { light: number; deep: number; rem: number; awake: number };
   bedtime?: string;
   wakeTime?: string;
+}
+
+export interface DietHistoryRecord {
+  date: string;
+  meals: Meal[];
+  profile: UserProfile;
 }
 
 export interface AppState {
@@ -192,6 +200,9 @@ export interface AppState {
   activeRoutineId: string | null;
   workoutPlan: WorkoutDay[] | null; 
   splitStartDate: string | null;
+  dietStartDate: string | null;
+  dietHistory: DietHistoryRecord[];
+  baseDiet: Meal[];
   dailyMeals: Meal[];
   mealHistory: Record<string, Meal[]>;
   activeWorkout: WorkoutDay | null;
@@ -202,6 +213,7 @@ export interface AppState {
   pinnedMetrics: string[];
   dailyMetricsHistory: DailyMetric[];
   weightHistory: WeightRecord[];
+  waistHistory: { date: string; value: number }[];
   lastResetDate: string | null;
   connectedWearables: string[];
   persona: AIPersona | null;

@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
-import { Crown, ShieldCheck, ArrowRight, Fingerprint, Terminal, Check, Loader2, Mail, Apple, AlertCircle, RefreshCw } from 'lucide-react';
+import { Crown, ShieldCheck, ArrowRight, Fingerprint, Terminal, Check, Loader2, Mail, Apple, AlertCircle, RefreshCw, User } from 'lucide-react';
+import { useTheme } from './ThemeContext.tsx';
+import { AIPersona } from './types.ts';
 
 interface AuthProps {
   onAuthorize: (remember: boolean) => Promise<void>;
@@ -8,6 +10,7 @@ interface AuthProps {
 }
 
 export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
+  const { theme, persona, setPersona } = useTheme();
   const [rememberMe, setRememberMe] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -141,11 +144,11 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
         <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-10 animate-in fade-in duration-500">
            <div className="w-full max-w-xs space-y-8 text-center">
               <div className="relative inline-block">
-                 <div className="absolute inset-0 gold-bg opacity-20 blur-[60px] animate-pulse rounded-full" />
-                 <Loader2 className="gold-text relative animate-spin" size={64} strokeWidth={1} />
+                 <div className="absolute inset-0 opacity-20 blur-[60px] animate-pulse rounded-full" style={{ backgroundColor: theme.accentColor }} />
+                 <Loader2 className="relative animate-spin" size={64} strokeWidth={1} style={{ color: theme.accentColor }} />
               </div>
               <div className="space-y-4">
-                 <p className="text-[10px] text-gold font-bold uppercase tracking-[0.6em] animate-pulse">Establishing Connection</p>
+                 <p className="text-[10px] font-bold uppercase tracking-[0.6em] animate-pulse" style={{ color: theme.accentColor }}>Establishing Connection</p>
                  <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest min-h-[2.5em] flex items-center justify-center leading-relaxed">
                     {authStatus}
                  </div>
@@ -158,12 +161,12 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
         
         <header className="text-center space-y-6">
           <div className="relative inline-block">
-             <div className="absolute inset-0 gold-bg opacity-10 blur-[40px] scale-150 rounded-full" />
-             <Crown className="gold-text relative" size={48} strokeWidth={1.5} />
+             <div className="absolute inset-0 opacity-10 blur-[40px] scale-150 rounded-full" style={{ backgroundColor: theme.accentColor }} />
+             <Crown className="relative" size={48} strokeWidth={1.5} style={{ color: theme.accentColor }} />
           </div>
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-[0.2em] gold-text uppercase leading-tight">
-              {isForgotPassword ? "ARES_RECOVER" : (isLogin ? "ARES_AUTH" : "ARES_ENROLL")}
+            <h1 className="text-3xl font-bold tracking-[0.2em] uppercase leading-tight" style={{ color: theme.accentColor }}>
+              {isForgotPassword ? `${theme.brandName.toUpperCase()}_RECOVER` : (isLogin ? `${theme.brandName.toUpperCase()}_AUTH` : `${theme.brandName.toUpperCase()}_ENROLL`)}
             </h1>
             <p className="text-zinc-500 text-[9px] font-bold tracking-[0.5em] uppercase">PERFORMANCE OPTIMIZATION HUB</p>
           </div>
@@ -204,8 +207,27 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
             </div>
           )}
 
-          <div className={`w-full posh-card p-10 rounded-[48px] space-y-10 transition-all ${errorVisible ? 'animate-shake border-gold/50 shadow-[0_0_20px_rgba(197,160,89,0.1)]' : 'border-white/5'}`}>
+          <div className={`w-full posh-card p-10 rounded-[48px] space-y-10 transition-all ${errorVisible ? 'animate-shake shadow-[0_0_20px_rgba(197,160,89,0.1)]' : 'border-white/5'}`} style={errorVisible ? { borderColor: `${theme.accentColor}80` } : {}}>
             <div className="space-y-6">
+              {!isLogin && !isForgotPassword && (
+                <div className="space-y-4">
+                  <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] ml-2">Select Trainer Persona</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[AIPersona.ARES, AIPersona.ATHENA].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => { triggerHaptic(5); setPersona(p); }}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${persona === p ? 'bg-white/5' : 'bg-transparent border-white/5 opacity-40'}`}
+                        style={persona === p ? { borderColor: theme.accentColor } : {}}
+                      >
+                        <Crown size={20} style={{ color: persona === p ? theme.accentColor : '#71717a' }} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: persona === p ? theme.accentColor : '#71717a' }}>{p}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] ml-2">Email Identity</label>
                 <div className="relative">
@@ -213,10 +235,14 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                   <input 
                     disabled={isConnecting}
                     type="email"
-                    placeholder="PROTOCOL@ARES.IO" 
+                    placeholder={`PROTOCOL@${theme.brandName.toUpperCase()}.IO`} 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full p-5 pl-12 rounded-2xl bg-zinc-900 border ${errorVisible && !email.trim() ? 'border-gold/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-wider uppercase text-xs transition-all disabled:opacity-50`}
+                    className={`w-full p-5 pl-12 rounded-2xl bg-zinc-900 border ${errorVisible && !email.trim() ? '' : 'border-white/5'} outline-none tracking-wider uppercase text-xs transition-all disabled:opacity-50`}
+                    style={{ 
+                      color: theme.accentColor,
+                      borderColor: errorVisible && !email.trim() ? `${theme.accentColor}4D` : undefined
+                    }}
                   />
                 </div>
               </div>
@@ -230,15 +256,19 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                     placeholder="••••••••" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full p-5 rounded-2xl bg-zinc-900 border ${errorVisible && !password.trim() ? 'border-gold/30' : 'border-white/5'} gold-text outline-none focus:border-gold-solid tracking-widest text-xs transition-all disabled:opacity-50`}
+                    className={`w-full p-5 rounded-2xl bg-zinc-900 border ${errorVisible && !password.trim() ? '' : 'border-white/5'} outline-none tracking-widest text-xs transition-all disabled:opacity-50`}
+                    style={{ 
+                      color: theme.accentColor,
+                      borderColor: errorVisible && !password.trim() ? `${theme.accentColor}4D` : undefined
+                    }}
                   />
                 </div>
               )}
 
               {errorMessage && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-gold/5 border border-gold/20 rounded-xl animate-in slide-in-from-top-2 duration-300">
-                  <AlertCircle size={14} className="text-gold shrink-0" />
-                  <p className="font-mono text-[9px] font-bold text-gold uppercase tracking-widest leading-relaxed">
+                <div className="flex items-center gap-3 px-4 py-3 border rounded-xl animate-in slide-in-from-top-2 duration-300" style={{ backgroundColor: `${theme.accentColor}0D`, borderColor: `${theme.accentColor}33` }}>
+                  <AlertCircle size={14} className="shrink-0" style={{ color: theme.accentColor }} />
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest leading-relaxed" style={{ color: theme.accentColor }}>
                     {errorMessage}
                   </p>
                 </div>
@@ -251,7 +281,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                     onClick={() => { triggerHaptic(5); setRememberMe(!rememberMe); }}
                     className="flex items-center gap-3 group disabled:opacity-50"
                   >
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${rememberMe ? 'bg-gold border-gold text-black' : 'bg-transparent border-white/10 group-hover:border-gold/50'}`}>
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${rememberMe ? 'text-black' : 'bg-transparent border-white/10'}`} style={rememberMe ? { backgroundColor: theme.accentColor, borderColor: theme.accentColor } : {}}>
                       {rememberMe && <Check size={14} strokeWidth={3} />}
                     </div>
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Maintain Active</span>
@@ -259,7 +289,8 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                   <button 
                     disabled={isConnecting} 
                     onClick={() => { triggerHaptic(5); setIsForgotPassword(true); }}
-                    className="text-[10px] font-bold text-gold/60 uppercase tracking-widest hover:text-gold transition-colors disabled:opacity-50"
+                    className="text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                    style={{ color: `${theme.accentColor}99` }}
                   >
                     Recover?
                   </button>
@@ -271,7 +302,8 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
               <button 
                 disabled={isConnecting}
                 onClick={handleAuthorize}
-                className={`w-full font-bold h-16 rounded-[24px] shadow-2xl flex items-center justify-center gap-4 transition-all active:scale-95 ${isValid ? 'gold-bg text-black' : 'bg-zinc-800 text-zinc-600 opacity-50'}`}
+                className={`w-full font-bold h-16 rounded-[24px] shadow-2xl flex items-center justify-center gap-4 transition-all active:scale-95 ${isValid ? 'text-black' : 'bg-zinc-800 text-zinc-600 opacity-50'}`}
+                style={isValid ? { backgroundColor: theme.accentColor } : {}}
               >
                 <span className="text-[12px] tracking-[0.4em] uppercase">
                   {isForgotPassword ? "INITIATE RECOVERY" : (isLogin ? "INITIATE SESSION" : "FORGE ACCOUNT")}
@@ -296,12 +328,12 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
                 className="w-full text-[10px] text-zinc-500 font-bold tracking-[0.3em] uppercase transition-colors disabled:opacity-50"
               >
                 {isForgotPassword ? (
-                  <>RETURN TO <span className="text-gold ml-1">TERMINAL</span></>
+                  <>RETURN TO <span className="ml-1" style={{ color: theme.accentColor }}>TERMINAL</span></>
                 ) : (
                   isLogin ? (
-                    <>NO RECORD DETECTED? <span className="text-gold ml-1">ENROLL</span></>
+                    <>NO RECORD DETECTED? <span className="ml-1" style={{ color: theme.accentColor }}>ENROLL</span></>
                   ) : (
-                    <>EXISTING PROTOCOL? <span className="text-gold ml-1">LOG IN</span></>
+                    <>EXISTING PROTOCOL? <span className="ml-1" style={{ color: theme.accentColor }}>LOG IN</span></>
                   )
                 )}
               </button>
@@ -312,11 +344,11 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
         {!isForgotPassword && (
           <div className="flex flex-col items-center space-y-10 w-full">
             <div className="flex items-center gap-8">
-              <button disabled={isConnecting} onClick={() => handleSocialAuth('biometric')} className="w-16 h-16 rounded-full border border-white/5 flex items-center justify-center text-zinc-600 hover:text-gold hover:border-gold/30 transition-all duration-500 active:scale-90 disabled:opacity-50">
-                <Fingerprint size={28} strokeWidth={1.5} />
+              <button disabled={isConnecting} onClick={() => handleSocialAuth('biometric')} className="w-16 h-16 rounded-full border border-white/5 flex items-center justify-center text-zinc-600 transition-all duration-500 active:scale-90 disabled:opacity-50" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                <Fingerprint size={28} strokeWidth={1.5} className="hover:text-current" style={{ color: persona === AIPersona.ARES ? '#D4AF37' : '#999B9B' }} />
               </button>
               {onSkip && (
-                <button disabled={isConnecting} onClick={() => { triggerHaptic(); onSkip(); }} className="px-6 h-12 bg-zinc-900 border border-white/5 rounded-xl text-[9px] text-zinc-700 font-bold uppercase tracking-[0.4em] hover:text-gold transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50">
+                <button disabled={isConnecting} onClick={() => { triggerHaptic(); onSkip(); }} className="px-6 h-12 bg-zinc-900 border border-white/5 rounded-xl text-[9px] text-zinc-700 font-bold uppercase tracking-[0.4em] transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50 hover:text-current" style={{ color: theme.accentColor }}>
                   <Terminal size={14} /> Sandbox Bypass
                 </button>
               )}
@@ -325,7 +357,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
         )}
 
         <footer className="flex items-center gap-3 opacity-10">
-          <ShieldCheck size={14} className="text-gold" />
+          <ShieldCheck size={14} style={{ color: theme.accentColor }} />
           <span className="text-[9px] font-bold tracking-[0.6em] uppercase">AES-256 SECURED</span>
         </footer>
       </div>

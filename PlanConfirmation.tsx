@@ -3,14 +3,17 @@ import { WorkoutDay, Meal } from './types';
 import { Card } from './components/Card';
 import { Check, Edit3, Crown, Zap, Dumbbell, Calendar, Utensils, Target } from 'lucide-react';
 
+import { ThemeConfig } from './theme.ts';
+
 interface PlanConfirmationProps {
   workoutPlan: WorkoutDay[];
   dietPlan: Meal[];
   onAccept: (duration: number) => void;
   onRefine: () => void;
+  theme: ThemeConfig;
 }
 
-export const PlanConfirmation: React.FC<PlanConfirmationProps> = ({ workoutPlan, dietPlan, onAccept, onRefine }) => {
+export const PlanConfirmation: React.FC<PlanConfirmationProps> = ({ workoutPlan, dietPlan, onAccept, onRefine, theme }) => {
   const [duration, setDuration] = useState(3);
 
   const dailyTotals = useMemo(() => {

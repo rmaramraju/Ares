@@ -53,6 +53,7 @@ interface ProfileSettingsProps {
   onUpdateProfile: (profile: UserProfile) => void;
   onLogout: () => void;
   onLogWeight: (weight: number) => void;
+  onLogWaist: (waist: number) => void;
   onToggleWearable: (id: string) => void;
   onAddCustomExercise: (ex: ExerciseMetadata) => void;
   onUpdateExercise: (ex: ExerciseMetadata) => void;
@@ -71,11 +72,11 @@ const INTEGRATION_PROVIDERS = [
 
 const MUSCLE_LIST: MuscleGroup[] = ['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'];
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onToggleWearable, onAddCustomExercise, onUpdateExercise, onDeleteExercise, onUpdateTheme, onToggleNav }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onLogWaist, onToggleWearable, onAddCustomExercise, onUpdateExercise, onDeleteExercise, onUpdateTheme, onToggleNav }) => {
   const profile = state.profile;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [showEditMetric, setShowEditMetric] = useState<'weight' | 'goalWeight' | 'currentFat' | 'targetFat' | 'restTimer' | null>(null);
+  const [showEditMetric, setShowEditMetric] = useState<'weight' | 'goalWeight' | 'waist' | 'currentFat' | 'targetFat' | 'restTimer' | null>(null);
   const [metricValue, setMetricValue] = useState(0);
   const [showIdentityEditor, setShowIdentityEditor] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
@@ -97,7 +98,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
   });
   const [ytUrl, setYtUrl] = useState('');
 
-  const mergedDirectory = useMemo(() => [...EXERCISE_DIRECTORY, ...state.userExercises], [state.userExercises]);
+  const mergedDirectory = useMemo(() => {
+    const userIds = new Set(state.userExercises.map(ex => ex.id));
+    const baseExercises = EXERCISE_DIRECTORY.filter(ex => !userIds.has(ex.id));
+    return [...baseExercises, ...state.userExercises];
+  }, [state.userExercises]);
 
   const [cameraStatus, setCameraStatus] = useState<PermissionState>('prompt');
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>('default');
@@ -258,6 +263,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
   const handleMetricSubmit = () => {
     HapticService.notificationSuccess();
     if (showEditMetric === 'weight') onLogWeight(metricValue);
+    else if (showEditMetric === 'waist') onLogWaist(metricValue);
     else if (showEditMetric === 'goalWeight') onUpdateProfile({ ...profile, goalWeight: metricValue });
     else if (showEditMetric === 'currentFat') onUpdateProfile({ ...profile, currentBodyFat: metricValue });
     else if (showEditMetric === 'targetFat') onUpdateProfile({ ...profile, targetBodyFat: metricValue });
@@ -333,6 +339,13 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                 <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Current Mass</p>
              </div>
           </Card>
+          <Card onClick={() => { HapticService.selection(); setMetricValue(state.waistHistory.length > 0 ? state.waistHistory[state.waistHistory.length - 1].value : 0); setShowEditMetric('waist'); }} className="p-8 flex flex-col items-center gap-4 border-white/5 bg-zinc-900/20 group hover:border-gold/40 transition-all tap-feedback">
+             <Activity size={20} className="text-zinc-500 group-hover:text-gold transition-colors" />
+             <div className="text-center space-y-1">
+                <p className="text-2xl font-bold group-hover:gold-text transition-colors tabular-nums">{state.waistHistory.length > 0 ? state.waistHistory[state.waistHistory.length - 1].value : '--'} <span className="text-[10px] text-zinc-500 font-black">{isMetric ? 'CM' : 'IN'}</span></p>
+                <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Waist Circum.</p>
+             </div>
+          </Card>
           <Card onClick={() => { HapticService.selection(); setMetricValue(profile.goalWeight); setShowEditMetric('goalWeight'); }} className="p-8 flex flex-col items-center gap-4 border-gold/20 bg-gold/5 group hover:bg-gold/10 transition-all tap-feedback">
              <Target size={20} className="text-gold" />
              <div className="text-center space-y-1">
@@ -340,8 +353,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                 <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Target Mass</p>
              </div>
           </Card>
-          {/* REST TIMER SETTING ADDED HERE */}
-          <Card onClick={() => { HapticService.selection(); setMetricValue(profile.restTimerDuration); setShowEditMetric('restTimer'); }} className="p-8 flex flex-col items-center gap-4 border-white/5 bg-zinc-900/20 group hover:border-gold/40 transition-all tap-feedback col-span-2">
+          <Card onClick={() => { HapticService.selection(); setMetricValue(profile.restTimerDuration); setShowEditMetric('restTimer'); }} className="p-8 flex flex-col items-center gap-4 border-white/5 bg-zinc-900/20 group hover:border-gold/40 transition-all tap-feedback">
              <Timer size={20} className="text-zinc-500 group-hover:text-gold transition-colors" />
              <div className="text-center space-y-1">
                 <p className="text-2xl font-bold group-hover:gold-text transition-colors tabular-nums">{profile.restTimerDuration} <span className="text-[10px] text-zinc-500 font-black">SEC</span></p>
@@ -577,6 +589,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                       </div>
                       <div className="flex items-center gap-4">
                         {isCustom && <span className="px-2 py-0.5 bg-gold/10 text-gold text-[6px] font-black rounded border border-gold/20 uppercase">USER</span>}
+                        {!isCustom && state.userExercises.some(ux => ux.id === ex.id) && <span className="px-2 py-0.5 bg-gold/10 text-gold text-[6px] font-black rounded border border-gold/20 uppercase">MODIFIED</span>}
                         {isExpanded ? <ChevronUp className="text-gold" size={16} /> : <ChevronDown className="text-zinc-800 group-hover:text-gold" size={16} />}
                       </div>
                     </div>
@@ -628,8 +641,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                             <div className="relative">
                               <Youtube size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700" />
                               <input 
-                                disabled={!isCustom}
-                                className="w-full bg-zinc-950 border border-white/5 p-4 pl-12 rounded-xl text-[10px] font-bold text-zinc-400 outline-none focus:border-gold tracking-widest disabled:opacity-50"
+                                className="w-full bg-zinc-950 border border-white/5 p-4 pl-12 rounded-xl text-[10px] font-bold text-zinc-400 outline-none focus:border-gold tracking-widest"
                                 placeholder="HTTPS://YOUTU.BE/..."
                                 value={editingExercise?.youtubeId ? `https://youtu.be/${editingExercise.youtubeId}` : ''}
                                 onChange={e => {
@@ -638,30 +650,44 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                                 }}
                               />
                             </div>
+                            {editingExercise?.youtubeId && (
+                              <div className="mt-2 relative aspect-video rounded-xl overflow-hidden border border-white/5 bg-zinc-950">
+                                <img 
+                                  src={`https://img.youtube.com/vi/${editingExercise.youtubeId}/mqdefault.jpg`} 
+                                  className="w-full h-full object-cover opacity-60"
+                                  alt="Preview"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Youtube size={24} className="text-gold opacity-50" />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div className="flex gap-3">
                           {isCustom ? (
-                            <>
-                              <button 
-                                onClick={() => { HapticService.impactHeavy(); onDeleteExercise(ex.id); setExpandedExerciseId(null); }}
-                                className="flex-1 py-4 bg-red-500/10 border border-red-500/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
-                              >
-                                <Trash2 size={12} /> Delete Module
-                              </button>
-                              <button 
-                                onClick={handleUpdateExerciseInternal}
-                                className="flex-1 py-4 gold-metallic rounded-xl text-[8px] font-black uppercase tracking-widest text-black shadow-lg shadow-gold/20 flex items-center justify-center gap-2"
-                              >
-                                <Save size={12} /> Save Changes
-                              </button>
-                            </>
-                          ) : (
-                            <p className="w-full text-center text-[7px] text-zinc-700 uppercase tracking-widest py-2 italic">
-                              System modules are read-only. Create custom modules for full control.
-                            </p>
-                          )}
+                            <button 
+                              onClick={() => { HapticService.impactHeavy(); onDeleteExercise(ex.id); setExpandedExerciseId(null); }}
+                              className="flex-1 py-4 bg-red-500/10 border border-red-500/20 rounded-xl text-[8px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+                            >
+                              <Trash2 size={12} /> Delete Module
+                            </button>
+                          ) : state.userExercises.some(ux => ux.id === ex.id) ? (
+                            <button 
+                              onClick={() => { HapticService.impactHeavy(); onDeleteExercise(ex.id); setExpandedExerciseId(null); }}
+                              className="flex-1 py-4 bg-zinc-900 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-all flex items-center justify-center gap-2"
+                            >
+                              <History size={12} /> Reset to System
+                            </button>
+                          ) : null}
+                          
+                          <button 
+                            onClick={handleUpdateExerciseInternal}
+                            className="flex-1 py-4 gold-metallic rounded-xl text-[8px] font-black uppercase tracking-widest text-black shadow-lg shadow-gold/20 flex items-center justify-center gap-2"
+                          >
+                            <Save size={12} /> Save Changes
+                          </button>
                         </div>
                       </div>
                     )}
@@ -734,12 +760,27 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
                    <div className="relative">
                       <Youtube size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-700" />
                       <input 
-                        className="w-full bg-zinc-900 border border-white/5 p-5 pl-14 rounded-2xl text-[10px] font-bold text-zinc-400 outline-none focus:border-gold-solid tracking-widest placeholder:text-zinc-800" 
+                        className={`w-full bg-zinc-900 border p-5 pl-14 rounded-2xl text-[10px] font-bold outline-none tracking-widest placeholder:text-zinc-800 transition-all ${ytUrl && !extractYoutubeId(ytUrl) ? 'border-red-500/50 text-red-400' : 'border-white/5 text-zinc-400 focus:border-gold-solid'}`} 
                         placeholder="HTTPS://WWW.YOUTUBE.COM/WATCH?V=..." 
                         value={ytUrl} 
                         onChange={e => setYtUrl(e.target.value)} 
                       />
                    </div>
+                   {ytUrl && extractYoutubeId(ytUrl) && (
+                     <div className="mt-4 relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-900 animate-in fade-in zoom-in-95 duration-300">
+                        <img 
+                          src={`https://img.youtube.com/vi/${extractYoutubeId(ytUrl)}/mqdefault.jpg`} 
+                          className="w-full h-full object-cover opacity-60"
+                          alt="Preview"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Youtube size={32} className="text-gold opacity-50" />
+                        </div>
+                     </div>
+                   )}
+                   {ytUrl && !extractYoutubeId(ytUrl) && (
+                     <p className="text-[7px] text-red-500 uppercase tracking-widest mt-1">Invalid YouTube URL format</p>
+                   )}
                    <p className="text-[7px] text-zinc-700 uppercase tracking-widest text-right mt-1">*Used for real-time video guidance</p>
                 </div>
               </div>
@@ -790,7 +831,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
               </div>
               <div className="relative inline-block">
                 <input type="number" value={metricValue} onChange={(e) => setMetricValue(parseFloat(e.target.value))} className="w-full bg-transparent text-8xl font-black text-center outline-none gold-text tabular-nums" autoFocus />
-                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-black text-zinc-800 tracking-[0.4em] uppercase">{showEditMetric === 'restTimer' ? 'SECONDS' : (isMetric ? 'KG' : 'LB')}</span>
+                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-black text-zinc-800 tracking-[0.4em] uppercase">
+                  {showEditMetric === 'weight' || showEditMetric === 'goalWeight' ? (isMetric ? 'KG' : 'LB') : 
+                   showEditMetric === 'waist' ? (isMetric ? 'CM' : 'IN') :
+                   showEditMetric === 'restTimer' ? 'SEC' : '%'}
+                </span>
               </div>
               <div className="flex gap-4">
                  <button onClick={() => { HapticService.impactLight(); setShowEditMetric(null); }} className="flex-1 p-8 bg-white/5 rounded-[32px] text-zinc-600 hover:text-white tap-feedback"><X size={28} className="mx-auto" /></button>

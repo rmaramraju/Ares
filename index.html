@@ -16,13 +16,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --gold-gradient: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-            --gold-solid: #D4AF37;
+            --accent-gradient: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            --accent-solid: #D4AF37;
+            --accent-glow: rgba(212, 175, 55, 0.5);
+            --accent-glow-soft: rgba(212, 175, 55, 0.25);
             --bg: #ffffff;
             --surface: #f8f8f8;
             --text-main: #1a1a1a;
             --text-dim: #666666;
             --border: rgba(0,0,0,0.06);
+        }
+
+        .theme-athena {
+            --accent-gradient: linear-gradient(135deg, #C0C0C0, #E8E8E8, #A9A9A9, #F5F5F5, #808080);
+            --accent-solid: #C0C0C0;
+            --accent-glow: rgba(192, 192, 192, 0.5);
+            --accent-glow-soft: rgba(192, 192, 192, 0.25);
         }
 
         .dark {
@@ -31,6 +40,10 @@
             --text-main: #f0f0f0;
             --text-dim: #888888;
             --border: rgba(212, 175, 55, 0.12);
+        }
+
+        .theme-athena.dark {
+            --border: rgba(192, 192, 192, 0.12);
         }
 
         body {
@@ -66,26 +79,26 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #BF953F, #FCF6BA, #B38728);
+            background: var(--accent-gradient);
             border-radius: 10px;
-            box-shadow: 0 0 5px rgba(191, 149, 63, 0.5);
+            box-shadow: 0 0 5px var(--accent-glow);
         }
 
         .gold-text {
-            background: var(--gold-gradient);
+            background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .gold-bg {
-            background: var(--gold-gradient);
+            background: var(--accent-gradient);
         }
 
         .gold-metallic {
-            background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 45%, #B38728 50%, #FBF5B7 55%, #AA771C 100%) !important;
+            background: var(--accent-gradient) !important;
             color: #000 !important;
             border: 1px solid rgba(255, 255, 255, 0.4) !important;
-            box-shadow: 0 4px 15px rgba(191, 149, 63, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 0 4px 15px var(--accent-glow-soft), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
             font-weight: 900 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.1em !important;
@@ -95,7 +108,7 @@
         .gold-metallic:hover {
             filter: brightness(1.1);
             transform: scale(1.02);
-            box-shadow: 0 6px 20px rgba(191, 149, 63, 0.6);
+            box-shadow: 0 6px 20px var(--accent-glow);
         }
 
         .posh-card {
@@ -105,21 +118,21 @@
         }
 
         .posh-card:hover {
-            border-color: rgba(212, 175, 55, 0.8);
-            box-shadow: 0 0 35px rgba(212, 175, 55, 0.25);
+            border-color: var(--accent-solid);
+            box-shadow: 0 0 35px var(--accent-glow-soft);
             background: rgba(255, 255, 255, 0.04);
             transform: translateY(-2px);
         }
 
         .posh-card:active {
-            border-color: var(--gold-solid);
+            border-color: var(--accent-solid);
             transform: scale(0.99);
             background: rgba(212, 175, 55, 0.03);
         }
 
         .nav-item-active {
-            color: var(--gold-solid) !important;
-            text-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            color: var(--accent-solid) !important;
+            text-shadow: 0 0 15px var(--accent-glow);
             opacity: 1 !important;
         }
 

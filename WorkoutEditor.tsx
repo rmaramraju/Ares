@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { WorkoutDay, Exercise, SetType, Routine, ExerciseMetadata } from './types';
+import { WorkoutDay, Exercise, SetType, Routine, ExerciseMetadata, MuscleGroup } from './types';
 import { EXERCISE_DIRECTORY } from './exerciseDirectory';
 import { Card } from './components/Card';
 import { 
@@ -35,6 +35,8 @@ interface WorkoutEditorProps {
   activeRoutineId: string | null;
   startDate: string;
   userExercises?: ExerciseMetadata[];
+  onAddCustomExercise?: (ex: ExerciseMetadata) => void;
+  onUpdateExercise?: (ex: ExerciseMetadata) => void;
   onSave: (routines: Routine[], activeId: string, effectiveDate: string, durationMonths?: number) => void;
   onCancel: () => void;
 }
@@ -91,7 +93,7 @@ const ARCHIVE_SPLITS: Routine[] = [
   }
 ];
 
-export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRoutineId, startDate, userExercises = [], onSave, onCancel }) => {
+export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRoutineId, startDate, userExercises = [], onAddCustomExercise, onUpdateExercise, onSave, onCancel }) => {
   const [activeTab, setActiveTab] = useState<'MY_LIBRARY' | 'ARCHIVE'>('MY_LIBRARY');
   const [localRoutines, setLocalRoutines] = useState<Routine[]>(() => routines.map(r => JSON.parse(JSON.stringify(r))));
   const [currentActiveId, setCurrentActiveId] = useState(activeRoutineId || (routines[0]?.id || ''));
@@ -108,7 +110,57 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const mergedDirectory = useMemo(() => [...EXERCISE_DIRECTORY, ...userExercises], [userExercises]);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<ExerciseMetadata | null>(null);
+  const [customExercise, setCustomExercise] = useState<Partial<ExerciseMetadata>>({
+    name: '',
+    primaryMuscle: 'Chest',
+    category: 'Compound',
+    youtubeId: ''
+  });
+  const [ytUrl, setYtUrl] = useState('');
+
+  const mergedDirectory = useMemo(() => {
+    const userIds = new Set(userExercises.map(ex => ex.id));
+    const baseExercises = EXERCISE_DIRECTORY.filter(ex => !userIds.has(ex.id));
+    return [...baseExercises, ...userExercises];
+  }, [userExercises]);
+
+  const extractYoutubeId = (url: string) => {
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : '';
+  };
+
+  const handleSaveCustomExercise = () => {
+    if (!customExercise.name || !customExercise.primaryMuscle || !onAddCustomExercise) {
+      HapticService.notificationError();
+      return;
+    }
+
+    const videoId = ytUrl ? extractYoutubeId(ytUrl) : '';
+    const newEx: ExerciseMetadata = {
+      id: 'custom-' + Date.now(),
+      name: customExercise.name.toUpperCase(),
+      primaryMuscle: customExercise.primaryMuscle as MuscleGroup,
+      category: customExercise.category || 'Compound',
+      youtubeId: videoId,
+      animationUrl: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : ''
+    };
+
+    onAddCustomExercise(newEx);
+    setCustomExercise({ name: '', primaryMuscle: 'Chest', category: 'Compound' });
+    setYtUrl('');
+    setShowAddCustom(false);
+    HapticService.notificationSuccess();
+  };
+
+  const handleUpdateExerciseInternal = () => {
+    if (!editingExercise || !onUpdateExercise) return;
+    onUpdateExercise(editingExercise);
+    setEditingExercise(null);
+    HapticService.notificationSuccess();
+  };
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(localRoutines) !== JSON.stringify(routines) || 
@@ -675,9 +727,19 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
         )}
 
         <div className="mt-12 space-y-6">
-          <div className="flex items-center gap-3 px-2">
-            <Settings2 size={16} className="text-gold" />
-            <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">Temporal Sync</h3>
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <Settings2 size={16} className="text-gold" />
+              <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">Temporal Sync</h3>
+            </div>
+            <div className="group relative">
+              <AlertCircle size={14} className="text-zinc-700 cursor-help hover:text-gold transition-colors" />
+              <div className="absolute bottom-full right-0 mb-2 w-48 p-3 bg-zinc-900 border border-white/10 rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-2xl">
+                <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
+                  Syncs the workout rotation to a specific date. Useful if you missed days or want to restart the split cycle from Day 1 on a specific Monday.
+                </p>
+              </div>
+            </div>
           </div>
           <Card className="bg-[#0A0A0B] border-white/5 p-8 space-y-4">
             <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Effective Cycle Deployment</p>
@@ -756,7 +818,16 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
               <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Inventory</p>
               <h2 className="text-2xl font-light tracking-tight uppercase">Module Selector</h2>
             </div>
-            <button onClick={() => setShowDirectory(null)} className="p-3 bg-white/5 rounded-full text-zinc-500 hover:text-white transition-all"><X size={20} /></button>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => { HapticService.impactMedium(); setShowAddCustom(true); }}
+                className="w-10 h-10 gold-bg rounded-xl flex items-center justify-center text-black shadow-lg shadow-gold/20 active:scale-90 transition-all"
+                title="Forge New Movement"
+              >
+                <Plus size={20} strokeWidth={3} />
+              </button>
+              <button onClick={() => setShowDirectory(null)} className="p-3 bg-white/5 rounded-full text-zinc-500 hover:text-white transition-all"><X size={20} /></button>
+            </div>
           </header>
           
           <div className="p-8 border-b border-white/5 bg-zinc-950/50 space-y-6">
@@ -782,8 +853,8 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
               (ex.name.toLowerCase().includes(searchTerm.toLowerCase()) || ex.primaryMuscle.toLowerCase().includes(searchTerm.toLowerCase())) &&
               (!selectedCategory || ex.category === selectedCategory)
             ).map(ex => (
-              <Card key={ex.id} onClick={() => addExerciseToDay(ex)} className="bg-zinc-900/20 border-white/5 p-6 flex justify-between items-center group hover:border-gold/20 transition-all">
-                <div className="flex gap-6 items-center">
+              <Card key={ex.id} className="bg-zinc-900/20 border-white/5 p-6 flex justify-between items-center group hover:border-gold/20 transition-all">
+                <div className="flex gap-6 items-center cursor-pointer flex-1" onClick={() => addExerciseToDay(ex)}>
                   <div className="w-16 h-16 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-zinc-700 overflow-hidden relative">
                     {ex.youtubeId ? (
                       <img src={ex.animationUrl} className="w-full h-full object-cover opacity-40 group-hover:opacity-100 transition-opacity" />
@@ -796,12 +867,212 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                     <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mt-1">{ex.primaryMuscle} | {ex.category}</p>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-gold group-hover:text-black transition-all">
-                  <Plus size={18} strokeWidth={3} />
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); HapticService.selection(); setEditingExercise(ex); setYtUrl(ex.youtubeId ? `https://youtu.be/${ex.youtubeId}` : ''); }}
+                    className="p-2 bg-white/5 rounded-lg text-zinc-600 hover:text-gold transition-all"
+                    title="Edit Module"
+                  >
+                    <Settings2 size={16} />
+                  </button>
+                  <div onClick={() => addExerciseToDay(ex)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-gold group-hover:text-black transition-all cursor-pointer">
+                    <Plus size={18} strokeWidth={3} />
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
+        </div>
+      )}
+
+      {showAddCustom && (
+        <div className="fixed inset-0 z-[1100] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-500">
+           <div className="w-full max-w-sm space-y-10">
+              <header className="text-center space-y-4">
+                 <div className="w-20 h-20 bg-gold/10 rounded-[32px] flex items-center justify-center mx-auto border border-gold/20 shadow-[0_0_40px_rgba(212,175,55,0.1)]">
+                    <Plus size={32} className="text-gold" strokeWidth={3} />
+                 </div>
+                 <div>
+                    <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Inventory Synthesis</p>
+                    <h3 className="text-2xl font-light tracking-tight uppercase">Forge New Module</h3>
+                 </div>
+              </header>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                   <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Module Identity</label>
+                   <input 
+                    className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-xs font-bold text-white outline-none focus:border-gold-solid uppercase tracking-widest placeholder:text-zinc-800" 
+                    placeholder="E.G. BARBELL OVERHEAD PRESS" 
+                    value={customExercise.name} 
+                    onChange={e => setCustomExercise({...customExercise, name: e.target.value})} 
+                   />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                     <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Muscle Node</label>
+                     <select 
+                      className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none" 
+                      value={customExercise.primaryMuscle} 
+                      onChange={e => setCustomExercise({...customExercise, primaryMuscle: e.target.value as MuscleGroup})}
+                     >
+                        {['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'].map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                     </select>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Movement Class</label>
+                     <select 
+                      className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none" 
+                      value={customExercise.category} 
+                      onChange={e => setCustomExercise({...customExercise, category: e.target.value})}
+                     >
+                        <option value="Compound">COMPOUND</option>
+                        <option value="Isolation">ISOLATION</option>
+                        <option value="Cardio">CARDIO</option>
+                        <option value="HIIT">HIIT</option>
+                        <option value="Recovery">RECOVERY</option>
+                     </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                   <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Visual Archive (YouTube URL)</label>
+                   <div className="relative">
+                      <Youtube size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-700" />
+                      <input 
+                        className={`w-full bg-zinc-900 border p-5 pl-14 rounded-2xl text-[10px] font-bold outline-none tracking-widest placeholder:text-zinc-800 transition-all ${ytUrl && !extractYoutubeId(ytUrl) ? 'border-red-500/50 text-red-400' : 'border-white/5 text-zinc-400 focus:border-gold-solid'}`} 
+                        placeholder="HTTPS://WWW.YOUTUBE.COM/WATCH?V=..." 
+                        value={ytUrl} 
+                        onChange={e => setYtUrl(e.target.value)} 
+                      />
+                   </div>
+                   {ytUrl && extractYoutubeId(ytUrl) && (
+                     <div className="mt-4 relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-900 animate-in fade-in zoom-in-95 duration-300">
+                        <img 
+                          src={`https://img.youtube.com/vi/${extractYoutubeId(ytUrl)}/mqdefault.jpg`} 
+                          className="w-full h-full object-cover opacity-60"
+                          alt="Preview"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Youtube size={32} className="text-gold opacity-50" />
+                        </div>
+                     </div>
+                   )}
+                   {ytUrl && !extractYoutubeId(ytUrl) && (
+                     <p className="text-[7px] text-red-500 uppercase tracking-widest mt-1">Invalid YouTube URL format</p>
+                   )}
+                   <p className="text-[7px] text-zinc-700 uppercase tracking-widest text-right mt-1">*Used for real-time video guidance</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                 <button onClick={() => setShowAddCustom(false)} className="flex-1 py-5 bg-white/5 rounded-[24px] text-[9px] font-bold uppercase tracking-widest text-zinc-500 hover:bg-white/10 transition-colors">Abort</button>
+                 <button 
+                  onClick={handleSaveCustomExercise} 
+                  disabled={!customExercise.name}
+                  className="flex-1 py-5 gold-metallic rounded-[24px] text-[9px] font-black uppercase tracking-widest shadow-2xl shadow-gold/20 flex items-center justify-center gap-2 disabled:opacity-30 disabled:grayscale transition-all"
+                 >
+                   <Save size={14} /> Commit to Vault
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {editingExercise && (
+        <div className="fixed inset-0 z-[1100] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-500">
+           <div className="w-full max-w-sm space-y-10">
+              <header className="text-center space-y-4">
+                 <div className="w-20 h-20 bg-gold/10 rounded-[32px] flex items-center justify-center mx-auto border border-gold/20 shadow-[0_0_40px_rgba(212,175,55,0.1)]">
+                    <Settings2 size={32} className="text-gold" strokeWidth={3} />
+                 </div>
+                 <div>
+                    <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Module Configuration</p>
+                    <h3 className="text-2xl font-light tracking-tight uppercase">Edit Module</h3>
+                 </div>
+              </header>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                   <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Module Identity</label>
+                   <input 
+                    disabled={!editingExercise.id.startsWith('custom-')}
+                    className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-xs font-bold text-white outline-none focus:border-gold-solid uppercase tracking-widest disabled:opacity-50" 
+                    value={editingExercise.name} 
+                    onChange={e => setEditingExercise({...editingExercise, name: e.target.value})} 
+                   />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                     <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Muscle Node</label>
+                     <select 
+                      disabled={!editingExercise.id.startsWith('custom-')}
+                      className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none disabled:opacity-50" 
+                      value={editingExercise.primaryMuscle} 
+                      onChange={e => setEditingExercise({...editingExercise, primaryMuscle: e.target.value as MuscleGroup})}
+                     >
+                        {['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'].map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                     </select>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Movement Class</label>
+                     <select 
+                      disabled={!editingExercise.id.startsWith('custom-')}
+                      className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none disabled:opacity-50" 
+                      value={editingExercise.category} 
+                      onChange={e => setEditingExercise({...editingExercise, category: e.target.value})}
+                     >
+                        <option value="Compound">COMPOUND</option>
+                        <option value="Isolation">ISOLATION</option>
+                        <option value="Cardio">CARDIO</option>
+                        <option value="HIIT">HIIT</option>
+                        <option value="Recovery">RECOVERY</option>
+                     </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                   <label className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest ml-1">Visual Archive (YouTube URL)</label>
+                   <div className="relative">
+                      <Youtube size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-700" />
+                      <input 
+                        className={`w-full bg-zinc-900 border p-5 pl-14 rounded-2xl text-[10px] font-bold outline-none tracking-widest transition-all ${ytUrl && !extractYoutubeId(ytUrl) ? 'border-red-500/50 text-red-400' : 'border-white/5 text-zinc-400 focus:border-gold-solid'}`} 
+                        placeholder="HTTPS://WWW.YOUTUBE.COM/WATCH?V=..." 
+                        value={ytUrl} 
+                        onChange={e => {
+                          setYtUrl(e.target.value);
+                          const id = extractYoutubeId(e.target.value);
+                          setEditingExercise({...editingExercise, youtubeId: id, animationUrl: id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : ''});
+                        }} 
+                      />
+                   </div>
+                   {ytUrl && extractYoutubeId(ytUrl) && (
+                     <div className="mt-4 relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-900 animate-in fade-in zoom-in-95 duration-300">
+                        <img 
+                          src={`https://img.youtube.com/vi/${extractYoutubeId(ytUrl)}/mqdefault.jpg`} 
+                          className="w-full h-full object-cover opacity-60"
+                          alt="Preview"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Youtube size={32} className="text-gold opacity-50" />
+                        </div>
+                     </div>
+                   )}
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                 <button onClick={() => setEditingExercise(null)} className="flex-1 py-5 bg-white/5 rounded-[24px] text-[9px] font-bold uppercase tracking-widest text-zinc-500 hover:bg-white/10 transition-colors">Abort</button>
+                 <button 
+                  onClick={handleUpdateExerciseInternal} 
+                  className="flex-1 py-5 gold-metallic rounded-[24px] text-[9px] font-black uppercase tracking-widest shadow-2xl shadow-gold/20 flex items-center justify-center gap-2"
+                 >
+                   <Save size={14} /> Save Changes
+                 </button>
+              </div>
+           </div>
         </div>
       )}
 

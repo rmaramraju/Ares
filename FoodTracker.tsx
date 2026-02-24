@@ -2,28 +2,33 @@
 import React, { useState } from 'react';
 import { Meal, UserProfile } from './types';
 import { Card } from './components/Card';
-import { Plus, Trash2, Check, X, Target, ArrowLeft, Leaf, Edit3, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Check, X, Target, ArrowLeft, Leaf, Edit3, CheckCircle2, ChevronRight, Sparkles, RefreshCw, ChefHat, Info } from 'lucide-react';
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface FoodTrackerProps {
   meals: Meal[];
   profile: UserProfile;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
-  onAdd: (meal: Omit<Meal, 'id' | 'checked'>) => void;
+  onAdd: (meal: Omit<Meal, 'id' | 'checked'>, isPermanent: boolean) => void;
   onUpdateMeal?: (meal: Meal) => void;
   onUpdateProfile?: (profile: UserProfile) => void;
+  onRegenerateDiet?: (newMeals: Meal[]) => void;
   onBack: () => void;
 }
 
 type MacroType = 'calories' | 'protein' | 'carbs' | 'fats' | 'fiber';
 
-export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onToggle, onDelete, onAdd, onUpdateMeal, onUpdateProfile, onBack }) => {
+export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onToggle, onDelete, onAdd, onUpdateMeal, onUpdateProfile, onRegenerateDiet, onBack }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [showTargetEdit, setShowTargetEdit] = useState<MacroType | null>(null);
   const [newTargetValue, setNewTargetValue] = useState(0);
-  const [mealData, setMealData] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
+  const [mealData, setMealData] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, cookingInstructions: '' });
+  const [showPermanentConfirm, setShowPermanentConfirm] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showInstructions, setShowInstructions] = useState<Meal | null>(null);
 
   const consumed = meals.reduce((acc, m) => m.checked ? {
     cal: acc.cal + m.calories,
@@ -53,18 +58,84 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
     if (editingMeal && onUpdateMeal) {
       onUpdateMeal({ ...editingMeal, ...mealData });
       setEditingMeal(null);
+      setShowModal(false);
+      setMealData({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, cookingInstructions: '' });
     } else {
-      onAdd(mealData);
+      setShowPermanentConfirm(true);
     }
+  };
+
+  const confirmAddMeal = (isPermanent: boolean) => {
+    onAdd(mealData, isPermanent);
+    setShowPermanentConfirm(false);
     setShowModal(false);
-    setMealData({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
+    setMealData({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, cookingInstructions: '' });
   };
 
   const handleEditMeal = (meal: Meal) => {
     triggerHaptic();
     setEditingMeal(meal);
-    setMealData({ name: meal.name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fats: meal.fats, fiber: meal.fiber || 0 });
+    setMealData({ name: meal.name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fats: meal.fats, fiber: meal.fiber || 0, cookingInstructions: meal.cookingInstructions || '' });
     setShowModal(true);
+  };
+
+  const handleRegenerate = async () => {
+    if (!onRegenerateDiet) return;
+    triggerHaptic();
+    setIsRegenerating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate a daily diet plan for a user with the following profile:
+        Goal: ${profile.goal}
+        Weight: ${profile.weight}kg
+        Height: ${profile.height}cm
+        Age: ${profile.age}
+        Gender: ${profile.gender}
+        Body Type: ${profile.bodyType}
+        Cuisine Preference: ${profile.cuisinePreference}
+        Maintenance Calories: ${profile.maintenanceCalories}
+        Target Protein: ${profile.targetProtein}g
+        Target Carbs: ${profile.targetCarbs}g
+        Target Fats: ${profile.targetFats}g
+        Target Fiber: ${profile.targetFiber}g
+
+        Provide 3-5 meals that strictly follow these macro targets.
+        For each meal, include detailed cooking instructions.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                calories: { type: Type.NUMBER },
+                protein: { type: Type.NUMBER },
+                carbs: { type: Type.NUMBER },
+                fats: { type: Type.NUMBER },
+                fiber: { type: Type.NUMBER },
+                cookingInstructions: { type: Type.STRING }
+              },
+              required: ["name", "calories", "protein", "carbs", "fats", "fiber", "cookingInstructions"]
+            }
+          }
+        }
+      });
+
+      const newMeals: Meal[] = JSON.parse(response.text || "[]").map((m: any) => ({
+        ...m,
+        id: Math.random().toString(36).substr(2, 9),
+        checked: false
+      }));
+
+      onRegenerateDiet(newMeals);
+    } catch (err) {
+      console.error("Diet generation failed:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   const openTargetEdit = (type: MacroType) => {
@@ -106,7 +177,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
             <h1 className="text-4xl font-light tracking-tighter uppercase">Fuel Log</h1>
           </div>
         </div>
-        <button onClick={() => { triggerHaptic(); setEditingMeal(null); setMealData({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 }); setShowModal(true); }} className="w-16 h-16 gold-bg text-black rounded-3xl flex items-center justify-center shadow-2xl active:scale-90 transition-all hover:bg-gold/90"><Plus size={28} strokeWidth={3} /></button>
+        <button onClick={() => { triggerHaptic(); setEditingMeal(null); setMealData({ name: '', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, cookingInstructions: '' }); setShowModal(true); }} className="w-16 h-16 gold-bg text-black rounded-3xl flex items-center justify-center shadow-2xl active:scale-90 transition-all hover:bg-gold/90"><Plus size={28} strokeWidth={3} /></button>
       </header>
 
       <Card className="p-10 relative overflow-hidden bg-zinc-950/50 reveal stagger-2 group hover:border-gold/30">
@@ -150,12 +221,34 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
       </Card>
 
       <div className="space-y-6 reveal">
-        <h3 className="text-[11px] text-zinc-500 font-black uppercase tracking-[0.6em] px-2 stagger-3">Nutritional Manifest</h3>
+        <div className="flex justify-between items-center px-2 stagger-3">
+          <h3 className="text-[11px] text-zinc-500 font-black uppercase tracking-[0.6em]">Nutritional Manifest</h3>
+          {onRegenerateDiet && (
+            <button 
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="flex items-center gap-2 px-4 py-2 bg-gold/10 border border-gold/20 rounded-xl text-[9px] font-black text-gold uppercase tracking-widest hover:bg-gold/20 transition-all disabled:opacity-50"
+            >
+              {isRegenerating ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              {isRegenerating ? 'Synthesizing...' : 'Regenerate Plan'}
+            </button>
+          )}
+        </div>
         {meals.map((meal, idx) => (
           <div key={meal.id} className={`group p-8 rounded-[32px] border flex flex-col transition-all duration-300 stagger-${Math.min(idx+1, 4)} ${meal.checked ? 'bg-gold/5 border-gold-solid' : 'bg-transparent border-white/5 hover:border-gold-solid/60 hover:bg-white/[0.02]'}`}>
             <div className="flex items-start justify-between mb-8">
-              <div onClick={() => handleEditMeal(meal)} className="cursor-pointer group-hover:opacity-90">
-                <h4 className={`text-xl font-black uppercase tracking-tight ${meal.checked ? 'gold-text' : 'text-zinc-500 group-hover:text-zinc-200'}`}>{meal.name}</h4>
+              <div onClick={() => handleEditMeal(meal)} className="cursor-pointer group-hover:opacity-90 flex-1">
+                <div className="flex items-center gap-3">
+                  <h4 className={`text-xl font-black uppercase tracking-tight ${meal.checked ? 'gold-text' : 'text-zinc-500 group-hover:text-zinc-200'}`}>{meal.name}</h4>
+                  {meal.cookingInstructions && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowInstructions(meal); }}
+                      className="p-2 bg-white/5 rounded-lg text-zinc-600 hover:text-gold transition-all"
+                    >
+                      <ChefHat size={14} />
+                    </button>
+                  )}
+                </div>
                 <p className="text-[10px] text-zinc-600 font-black uppercase mt-2 tracking-widest">
                   {meal.calories} KCAL | P:{meal.protein} C:{meal.carbs} F:{meal.fats} FBR:{meal.fiber || 0}
                 </p>
@@ -191,6 +284,7 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
                     <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">CARBS (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-bold hover:bg-zinc-800" value={mealData.carbs} onChange={e => setMealData({...mealData, carbs: Number(e.target.value)})} /></div>
                     <div className="space-y-1"><label className="text-[8px] text-zinc-600 font-bold ml-2">FATS (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-bold hover:bg-zinc-800" value={mealData.fats} onChange={e => setMealData({...mealData, fats: Number(e.target.value)})} /></div>
                     <div className="space-y-1 col-span-2"><label className="text-[8px] text-zinc-600 font-bold ml-2 uppercase">Fiber (G)</label><input type="number" className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-gold font-bold hover:bg-zinc-800" value={mealData.fiber} onChange={e => setMealData({...mealData, fiber: Number(e.target.value)})} /></div>
+                    <div className="space-y-1 col-span-2"><label className="text-[8px] text-zinc-600 font-bold ml-2 uppercase">Cooking Instructions</label><textarea className="w-full p-6 bg-zinc-900 border border-white/5 rounded-2xl text-xs outline-none text-white font-medium hover:bg-zinc-800 min-h-[100px] resize-none" placeholder="OPTIONAL PREPARATION STEPS..." value={mealData.cookingInstructions} onChange={e => setMealData({...mealData, cookingInstructions: e.target.value})} /></div>
                  </div>
               </div>
               <div className="flex gap-4">
@@ -216,6 +310,67 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
                  <button onClick={() => setShowTargetEdit(null)} className="flex-1 p-6 bg-white/5 rounded-[32px] text-zinc-500 active:scale-95 hover:bg-white/10 hover:text-white transition-all"><X size={24} className="mx-auto" /></button>
                  <button onClick={saveTargetOverride} className="flex-1 gold-bg p-6 rounded-[32px] text-black shadow-2xl shadow-gold/20 active:scale-95 hover:bg-gold/90 transition-all"><Check size={24} className="mx-auto" strokeWidth={3} /></button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {showPermanentConfirm && (
+        <div className="fixed inset-0 z-[600] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
+           <div className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-[48px] p-10 space-y-8 text-center">
+              <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto border border-gold/20">
+                 <Target size={32} className="text-gold" />
+              </div>
+              <div className="space-y-2">
+                 <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Persistence Protocol</p>
+                 <h2 className="text-2xl font-light tracking-tight uppercase">Commitment Level</h2>
+                 <p className="text-[11px] text-zinc-500 font-light leading-relaxed">Should this entry be integrated into your daily baseline blueprint, or is it a one-off metabolic event?</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                 <button 
+                   onClick={() => confirmAddMeal(true)}
+                   className="w-full py-5 gold-bg text-black rounded-2xl font-black text-[11px] tracking-[0.5em] uppercase shadow-lg shadow-gold/20 active:scale-95 transition-all"
+                 >
+                   Permanent Blueprint
+                 </button>
+                 <button 
+                   onClick={() => confirmAddMeal(false)}
+                   className="w-full py-5 bg-white/5 text-zinc-400 border border-white/10 rounded-2xl font-black text-[11px] tracking-[0.5em] uppercase hover:bg-white/10 transition-all active:scale-95"
+                 >
+                   One-Off Entry
+                 </button>
+              </div>
+              <button 
+                onClick={() => setShowPermanentConfirm(false)}
+                className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest hover:text-zinc-400 transition-colors"
+              >
+                Cancel & Edit
+              </button>
+           </div>
+        </div>
+      )}
+
+      {showInstructions && (
+        <div className="fixed inset-0 z-[510] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in duration-300">
+           <div className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-[48px] p-10 space-y-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-10 opacity-[0.03]"><ChefHat size={120} /></div>
+              <header className="space-y-2 relative z-10">
+                 <p className="text-[10px] text-gold font-bold uppercase tracking-[0.5em]">Culinary Protocol</p>
+                 <h2 className="text-2xl font-light tracking-tight uppercase">{showInstructions.name}</h2>
+              </header>
+              <div className="space-y-4 relative z-10">
+                 <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <Info size={16} className="text-gold mt-1 shrink-0" />
+                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
+                       {showInstructions.cookingInstructions}
+                    </p>
+                 </div>
+              </div>
+              <button 
+                onClick={() => setShowInstructions(null)}
+                className="w-full py-5 gold-bg text-black rounded-2xl font-black text-[11px] tracking-[0.5em] uppercase shadow-lg shadow-gold/20 active:scale-95 transition-all"
+              >
+                Close Protocol
+              </button>
            </div>
         </div>
       )}

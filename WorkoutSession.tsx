@@ -19,12 +19,15 @@ import {
   Zap
 } from 'lucide-react';
 
+import { ThemeConfig } from './theme.ts';
+
 interface WorkoutSessionProps {
   workout: WorkoutDay;
   onComplete: (duration: number, logs: Record<string, ExerciseLog[]>) => void;
   onCancel: () => void;
   restTimerDuration?: number;
   connected?: boolean;
+  theme: ThemeConfig;
 }
 
 const formatTime = (s: number) => {
@@ -33,7 +36,7 @@ const formatTime = (s: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onComplete, onCancel, restTimerDuration = 90 }) => {
+export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ workout, onComplete, onCancel, restTimerDuration = 90, theme }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [sessionTimer, setSessionTimer] = useState(0);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog[]>>({});
