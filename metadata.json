@@ -1,6 +1,6 @@
 {
   "name": "AresN",
-  "description": "An AI-powered elite fitness protocol for specialized training and nutritional optimization.",
+  "description": "A high-performance fitness protocol featuring reactive ZPI metrics, local-first AI integration, and comprehensive data portability.",
   "requestFramePermissions": [
     "camera",
     "microphone",

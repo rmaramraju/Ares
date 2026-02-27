@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppState, UserProfile, WorkoutDay, Meal, ViewType, ExerciseLog, WorkoutHistoryItem, Gender, BodyType, Goal, Routine, SetType, AIPersona, UnitSystem, DailyMetric, ExerciseMetadata, DayStatus, Theme } from './types.ts';
+import { AppState, UserProfile, WorkoutDay, Meal, ViewType, ExerciseLog, WorkoutHistoryItem, Gender, BodyType, Goal, Routine, SetType, AIPersona, UnitSystem, DailyMetric, ExerciseMetadata, DayStatus, Theme, WarmUpExercise } from './types.ts';
 import { AresSyncEngine } from './syncService.ts';
 import { Auth } from './Auth.tsx';
 import { Onboarding } from './Onboarding.tsx';
@@ -13,8 +13,11 @@ import { WorkoutEditor } from './WorkoutEditor.tsx';
 import { ProfileSettings } from './ProfileSettings.tsx';
 import { LayoutGrid, Utensils, BarChart3, PenTool, UserCircle2, CloudLightning } from 'lucide-react';
 import { EXERCISE_DIRECTORY } from './exerciseDirectory.ts';
+import { WARMUP_LIBRARY } from './warmupLibrary.ts';
+import { generateWarmUpSequence } from './warmupService.ts';
 import { WearableService } from './wearableService.ts';
 import { HapticService } from './hapticService.ts';
+import { theme } from './theme.ts';
 
 const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -47,6 +50,9 @@ const App: React.FC = () => {
     connectedWearables: [],
     persona: AIPersona.ARES,
     userExercises: [],
+    warmupLibrary: WARMUP_LIBRARY,
+    warmupPresets: {},
+    workoutOverrides: {},
     theme: Theme.DARK
   });
 
@@ -61,7 +67,9 @@ const App: React.FC = () => {
           dietHistory: restored.dietHistory || [],
           userExercises: restored.userExercises || [],
           dailyMetricsHistory: restored.dailyMetricsHistory || [],
-          weightHistory: restored.weightHistory || []
+          weightHistory: restored.weightHistory || [],
+          warmupLibrary: restored.warmupLibrary || WARMUP_LIBRARY,
+          warmupPresets: restored.warmupPresets || {}
         }));
       }
     };
@@ -81,6 +89,25 @@ const App: React.FC = () => {
     const debounce = setTimeout(sync, 1500);
     return () => clearTimeout(debounce);
   }, [state]);
+
+  // Recurring Metric Analysis
+  useEffect(() => {
+    if (!state.isOnboarded) return;
+    
+    const debounce = setTimeout(() => {
+      updateDailyMetrics();
+    }, 1000);
+    
+    return () => clearTimeout(debounce);
+  }, [
+    state.workoutHistory, 
+    state.dailyMeals, 
+    state.profile?.weight, 
+    state.profile?.goal, 
+    state.profile?.targetProtein,
+    state.waistHistory,
+    state.connectedWearables
+  ]);
 
   // Daily Reset Logic
   useEffect(() => {
@@ -141,9 +168,7 @@ const App: React.FC = () => {
 
     const volumeTarget = 5000; 
     const proteinTarget = state.profile?.targetProtein || 180;
-    const vScore = Math.min(50, (totalVolume / volumeTarget) * 50);
-    const pScore = Math.min(50, (totalProtein / proteinTarget) * 50);
-
+    
     let recoveryData = { 
       hrv: undefined as number | undefined, 
       readiness: undefined as number | undefined, 
@@ -172,6 +197,29 @@ const App: React.FC = () => {
       }
     }
 
+    // ZPI Calculation (Zenith Performance Index) - 33.3% each
+    // 1. Workout Score (33.3%)
+    const vScore = Math.min(33.3, (totalVolume / volumeTarget) * 33.3);
+    
+    // 2. Fuel Score (33.3%)
+    const pScore = Math.min(33.3, (totalProtein / proteinTarget) * 33.3);
+    
+    // 3. Rest Score (33.3%)
+    const rScore = recoveryData.readiness !== undefined 
+      ? (recoveryData.readiness / 100) * 33.3 
+      : 33.3;
+
+    // 4. Consistency Penalty (Missed days in last 7 days)
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i - 1);
+      return getLocalDateString(d);
+    });
+    const missedCount = last7Days.filter(d => state.activityLog[d] === 'missed').length;
+    const consistencyPenalty = missedCount * 5;
+
+    const finalZpi = Math.max(0, Math.round(vScore + pScore + rScore - consistencyPenalty));
+
     const isWorkoutDone = todaysWorkouts.length > 0;
     const isFoodDone = state.dailyMeals.length > 0 && todaysMeals.length >= state.dailyMeals.length;
     
@@ -192,7 +240,7 @@ const App: React.FC = () => {
       carbs: totalCarbs,
       fats: totalFats,
       fiber: totalFiber,
-      zpi: Math.round(vScore + pScore),
+      zpi: finalZpi,
       weight: state.profile?.weight,
       waist: latestWaist,
       ...recoveryData
@@ -271,7 +319,7 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleWorkoutComplete = (durationSecs: number, logs: Record<string, ExerciseLog[]>) => {
+  const handleWorkoutComplete = (durationSecs: number, logs: Record<string, ExerciseLog[]>, warmupLogs?: Record<string, boolean>, warmupSkipped?: boolean) => {
     HapticService.protocolComplete();
     const todayStr = getLocalDateString(new Date());
     const historyEntry: WorkoutHistoryItem = {
@@ -279,7 +327,9 @@ const App: React.FC = () => {
       focus: state.activeWorkout?.focus || 'Movement',
       duration: Math.floor(durationSecs / 60),
       calories: Math.floor(durationSecs * 0.12),
-      logs: logs
+      logs: logs,
+      warmupLogs,
+      warmupSkipped
     };
 
     setState(p => ({
@@ -289,8 +339,6 @@ const App: React.FC = () => {
       activityLog: { ...p.activityLog, [todayStr]: 'full' },
       rescheduledWorkouts: { ...p.rescheduledWorkouts, [todayStr]: undefined as any }
     }));
-
-    setTimeout(updateDailyMetrics, 500);
   };
 
   const handleRescheduleWorkout = (missedDate: string, targetDate: string, workout: WorkoutDay) => {
@@ -339,6 +387,9 @@ const App: React.FC = () => {
       connectedWearables: [],
       persona: AIPersona.ARES,
       userExercises: [],
+      warmupLibrary: WARMUP_LIBRARY,
+      warmupPresets: {},
+      workoutOverrides: {},
       theme: Theme.DARK
     });
   };
@@ -444,7 +495,6 @@ const App: React.FC = () => {
       dailyMeals: newMeals,
       baseDiet: newMeals // Set as base diet automatically when regenerating
     }));
-    setTimeout(updateDailyMetrics, 100);
   };
 
   const handleDeleteExercise = (id: string) => {
@@ -478,6 +528,10 @@ const App: React.FC = () => {
             onEditSplit={() => { HapticService.impactMedium(); setState(s => ({ ...s, currentView: 'edit_plan' })); }} 
             onToggleRestDay={(d) => { HapticService.impactMedium(); setState(prev => ({ ...prev, activityLog: { ...prev.activityLog, [d]: prev.activityLog[d] === 'rest' ? undefined : 'rest' } })); }}
             onRescheduleWorkout={handleRescheduleWorkout}
+            onUpdateSplitStartDate={(date) => {
+              HapticService.notificationSuccess();
+              setState(prev => ({ ...prev, splitStartDate: date }));
+            }}
             onToggleNav={setIsNavVisible}
           />
         )}
@@ -487,12 +541,10 @@ const App: React.FC = () => {
             onToggle={(id) => { 
               HapticService.selection(); 
               setState(prev => ({ ...prev, dailyMeals: prev.dailyMeals.map(m => m.id === id ? { ...m, checked: !m.checked } : m) }));
-              setTimeout(updateDailyMetrics, 100);
             } }
             onDelete={(id) => { 
               HapticService.impactHeavy(); 
               setState(prev => ({ ...prev, dailyMeals: prev.dailyMeals.filter(m => m.id !== id), baseDiet: prev.baseDiet.filter(m => m.id !== id) }));
-              setTimeout(updateDailyMetrics, 100);
             } }
             onAdd={(m, isPermanent) => { 
               HapticService.notificationSuccess(); 
@@ -502,7 +554,6 @@ const App: React.FC = () => {
                 dailyMeals: [...prev.dailyMeals, newMeal],
                 baseDiet: isPermanent ? [...prev.baseDiet, newMeal] : prev.baseDiet
               }));
-              setTimeout(updateDailyMetrics, 100);
             } }
             onUpdateMeal={(m) => { 
               HapticService.impactMedium(); 
@@ -511,7 +562,6 @@ const App: React.FC = () => {
                 dailyMeals: prev.dailyMeals.map(x => x.id === m.id ? m : x),
                 baseDiet: prev.baseDiet.map(x => x.id === m.id ? m : x)
               }));
-              setTimeout(updateDailyMetrics, 100);
             } }
             onUpdateProfile={(p) => setState(prev => ({ ...prev, profile: p }))}
             onRegenerateDiet={handleRegenerateDiet}
@@ -523,18 +573,32 @@ const App: React.FC = () => {
           <WorkoutEditor 
             routines={state.routines || []} activeRoutineId={state.activeRoutineId} startDate={state.splitStartDate || getLocalDateString(new Date())}
             userExercises={state.userExercises}
+            warmupPresets={state.warmupPresets}
             onAddCustomExercise={handleAddCustomExercise}
             onUpdateExercise={handleUpdateExercise}
-            onSave={(updatedRoutines, activeId, date, duration) => { 
+            onSave={(updatedRoutines, activeId, date, duration, updatedWarmupPresets, isPermanent) => { 
               HapticService.notificationSuccess(); 
-              setState(prev => ({ 
-                ...prev, 
-                routines: updatedRoutines, 
-                activeRoutineId: activeId, 
-                splitStartDate: date, 
-                currentView: 'workouts',
-                profile: prev.profile ? { ...prev.profile, planDurationMonths: duration || prev.profile.planDurationMonths } : null
-              })); 
+              if (isPermanent) {
+                setState(prev => ({ 
+                  ...prev, 
+                  routines: updatedRoutines, 
+                  activeRoutineId: activeId, 
+                  splitStartDate: date, 
+                  warmupPresets: updatedWarmupPresets || prev.warmupPresets,
+                  currentView: 'workouts',
+                  profile: prev.profile ? { ...prev.profile, planDurationMonths: duration || prev.profile.planDurationMonths } : null
+                })); 
+              } else {
+                const activeRoutine = updatedRoutines.find(r => r.id === activeId);
+                setState(prev => ({
+                  ...prev,
+                  workoutOverrides: {
+                    ...prev.workoutOverrides,
+                    [date]: activeRoutine?.days[0] || prev.workoutOverrides[date]
+                  },
+                  currentView: 'workouts'
+                }));
+              }
             }}
             onCancel={() => { HapticService.impactLight(); setState(s => ({ ...s, currentView: 'workouts' })); }}
           />
@@ -542,19 +606,45 @@ const App: React.FC = () => {
         {state.currentView === 'profile' && (
           <ProfileSettings 
             state={state} 
-            onUpdateProfile={(p) => { HapticService.impactMedium(); setState(prev => ({ ...prev, profile: p })); }} 
+            onUpdateProfile={(p) => { 
+              HapticService.impactMedium(); 
+              setState(prev => ({ ...prev, profile: p })); 
+            }} 
             onLogout={handleLogout} 
             onLogWeight={(w) => {
               HapticService.notificationSuccess();
               const t = getLocalDateString(new Date());
               setState(prev => ({ ...prev, profile: prev.profile ? { ...prev.profile, weight: w } : null, weightHistory: [...(prev.weightHistory || []), { date: t, weight: w }] }));
-              setTimeout(updateDailyMetrics, 100);
             }} 
             onLogWaist={(v) => {
               HapticService.notificationSuccess();
               const t = getLocalDateString(new Date());
               setState(prev => ({ ...prev, waistHistory: [...(prev.waistHistory || []), { date: t, value: v }] }));
-              setTimeout(updateDailyMetrics, 100);
+            }}
+            onExport={() => {
+              HapticService.notificationSuccess();
+              const dataStr = JSON.stringify(state);
+              const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+              const exportFileDefaultName = `ares_backup_${new Date().toISOString().split('T')[0]}.json`;
+              const linkElement = document.createElement('a');
+              linkElement.setAttribute('href', dataUri);
+              linkElement.setAttribute('download', exportFileDefaultName);
+              linkElement.click();
+            }}
+            onImport={(file) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                try {
+                  const importedState = JSON.parse(e.target?.result as string);
+                  setState(importedState);
+                  HapticService.notificationSuccess();
+                  alert("Protocol Restored Successfully.");
+                } catch (err) {
+                  HapticService.notificationError();
+                  alert("Restore Failed: Invalid Protocol File.");
+                }
+              };
+              reader.readAsText(file);
             }}
             onToggleWearable={handleWearableToggle} 
             onAddCustomExercise={handleAddCustomExercise}
@@ -569,6 +659,7 @@ const App: React.FC = () => {
            workoutPlan={activeRoutine?.days || []} dietPlan={state.dailyMeals}
            onAccept={(d) => { HapticService.protocolComplete(); setState(prev => ({ ...prev, profile: prev.profile ? { ...prev.profile, planDurationMonths: d } : null, currentView: 'workouts' })); }}
            onRefine={() => { HapticService.impactMedium(); setState(s => ({ ...s, currentView: 'edit_plan' })); }}
+           theme={theme as any}
          />
         )}
       </main>
@@ -598,7 +689,9 @@ const App: React.FC = () => {
 
       {state.activeWorkout && (
         <WorkoutSession 
-          workout={state.activeWorkout} restTimerDuration={state.profile?.restTimerDuration}
+          workout={state.activeWorkout} 
+          warmupSequence={state.warmupPresets[`${state.activeRoutineId}_${state.activeWorkout.id}`]?.map(id => state.warmupLibrary.find(w => w.id === id)!).filter(Boolean) as any || generateWarmUpSequence(state.activeWorkout.exercises)}
+          restTimerDuration={state.profile?.restTimerDuration}
           onComplete={handleWorkoutComplete}
           onCancel={() => { HapticService.impactHeavy(); setState(p => ({ ...p, activeWorkout: null })); }}
         />

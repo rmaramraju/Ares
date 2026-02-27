@@ -201,6 +201,16 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     return state.workoutHistory.filter(h => h.date >= cutoffStr).sort((a,b) => a.date.localeCompare(b.date));
   }, [state.workoutHistory, rangeType, customRange]);
 
+  const prepConsistency = useMemo(() => {
+    if (filteredHistory.length === 0) return 0;
+    const completed = filteredHistory.filter(h => !h.warmupSkipped && h.warmupLogs && Object.keys(h.warmupLogs).length > 0).length;
+    return Math.round((completed / filteredHistory.length) * 100);
+  }, [filteredHistory]);
+
+  const prepHistory = useMemo(() => {
+    return filteredHistory.slice(-10).map(h => (!h.warmupSkipped && h.warmupLogs && Object.keys(h.warmupLogs).length > 0) ? 100 : 0);
+  }, [filteredHistory]);
+
   const filteredWeight = useMemo(() => {
     if (rangeType === 'CUSTOM' && customRange.start && customRange.end) {
       return state.weightHistory.filter(w => w.date >= customRange.start && w.date <= customRange.end).sort((a,b) => a.date.localeCompare(b.date));
@@ -330,8 +340,121 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
     return { etaString, daysToGoal, predictedVol, currentWeight, targetWeight, etaShiftLabel, etaShiftColor };
   }, [weightData, state.profile, trainingData]);
 
+  const missedDaysCount = useMemo(() => {
+    return Object.values(state.activityLog).filter(status => status === 'missed').length;
+  }, [state.activityLog]);
+
+  const isGoalAchieved = useMemo(() => {
+    if (!state.profile) return false;
+    const currentWeight = weightData.history[weightData.history.length - 1] || state.profile.weight;
+    const targetWeight = state.profile.goalWeight;
+    if (state.profile.goal === Goal.BULK) return currentWeight >= targetWeight;
+    if (state.profile.goal === Goal.CUT) return currentWeight <= targetWeight;
+    return Math.abs(currentWeight - targetWeight) < 1; 
+  }, [state.profile, weightData.history]);
+
   const latestZpi = filteredMetrics.length > 0 ? Math.round(filteredMetrics[filteredMetrics.length - 1].zpi) : 0;
-  const currentRank = latestZpi >= 90 ? 'S' : latestZpi >= 80 ? 'A' : latestZpi >= 70 ? 'B' : latestZpi >= 60 ? 'C' : 'D';
+  
+  const currentRank = useMemo(() => {
+    if (isGoalAchieved && missedDaysCount < 5 && latestZpi >= 85) return 'S+';
+    if (latestZpi >= 90) return 'S';
+    if (latestZpi >= 85) return 'A';
+    if (latestZpi >= 80) return 'B';
+    if (latestZpi >= 70) return 'C';
+    if (latestZpi >= 60) return 'D';
+    return 'E';
+  }, [latestZpi, isGoalAchieved, missedDaysCount]);
+
+  const RankIndicator = ({ rank, zpi }: { rank: string, zpi: number }) => {
+    const strokeWidth = rank === 'S+' || rank === 'S' ? 3 : rank === 'A' ? 2.5 : rank === 'B' ? 2 : rank === 'C' ? 1.5 : rank === 'D' ? 1.2 : 1;
+    
+    const getRankShape = () => {
+      switch (rank) {
+        case 'S+':
+        case 'S':
+          return (
+            <g>
+              {/* Full Geometric Emblem */}
+              <path d="M 50,5 L 95,25 L 95,75 L 50,95 L 5,75 L 5,25 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+              <path d="M 50,20 L 80,35 L 80,65 L 50,80 L 20,65 L 20,35 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.7} />
+              <path d="M 50,40 L 60,45 L 60,55 L 50,60 L 40,55 L 40,45 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.5} />
+              <path d="M 50,5 L 50,95 M 5,25 L 95,75 M 5,75 L 95,25" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.3} opacity="0.3" />
+              {rank === 'S+' && (
+                <circle cx="50" cy="50" r="15" fill="none" stroke="#D4AF37" strokeWidth="0.8" strokeDasharray="3 3" />
+              )}
+            </g>
+          );
+        case 'A':
+          return (
+            <g>
+              {/* Helm-inspired Sigil */}
+              <path d="M 50,5 L 90,25 L 90,55 L 50,95 L 10,55 L 10,25 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+              <path d="M 30,35 L 50,20 L 70,35 L 70,60 L 50,85 L 30,60 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.6} />
+              <path d="M 50,20 L 50,85" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.4} opacity="0.5" />
+            </g>
+          );
+        case 'B':
+          return (
+            <g>
+              {/* Angular Shield */}
+              <path d="M 50,5 L 95,25 L 80,85 L 50,95 L 20,85 L 5,25 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+              <path d="M 50,25 L 75,35 L 65,75 L 50,82 L 35,75 L 25,35 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.5} />
+            </g>
+          );
+        case 'C':
+          return (
+            <g>
+              {/* Reinforced Shield */}
+              <path d="M 50,8 L 88,22 L 88,60 C 88,82 50,92 50,92 C 50,92 12,82 12,60 L 12,22 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+              <path d="M 50,25 L 75,35 L 75,55 C 75,70 50,78 50,78 C 50,78 25,70 25,55 L 25,35 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth * 0.5} />
+            </g>
+          );
+        case 'D':
+          return (
+            <g>
+              {/* Structured Shield */}
+              <path d="M 50,10 L 85,25 L 85,60 C 85,85 50,95 50,95 C 50,95 15,85 15,60 L 15,25 Z" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+            </g>
+          );
+        case 'E':
+        default:
+          return (
+            <g>
+              {/* Thin Circular Outline */}
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#D4AF37" strokeWidth={strokeWidth} />
+            </g>
+          );
+      }
+    };
+
+    return (
+      <div className="relative w-48 h-48 flex items-center justify-center">
+        <div className="absolute inset-0 gold-bg opacity-10 blur-3xl animate-pulse" />
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          {/* Background Ring */}
+          <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(212,175,55,0.05)" strokeWidth="1" />
+          {/* Progress Ring */}
+          <circle 
+            cx="50" cy="50" r="48" 
+            fill="none" 
+            stroke="rgba(212,175,55,0.2)" 
+            strokeWidth="2" 
+            strokeDasharray="301.6" 
+            strokeDashoffset={301.6 - (301.6 * zpi / 100)} 
+            className="transition-all duration-1000 -rotate-90 origin-center" 
+          />
+          {/* Rank Shape */}
+          <g className="transition-all duration-700">
+            {getRankShape()}
+          </g>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-5xl font-black tabular-nums">{zpi}</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold">RANK {rank}</span>
+        </div>
+      </div>
+    );
+  };
 
   const muscleStats = useMemo(() => {
     const volumeMap: Record<string, number> = {};
@@ -546,17 +669,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
              <Card className="p-10 border-white/5 bg-[#080809] flex flex-col items-center gap-10 text-center relative overflow-hidden group">
                 <div className="absolute -top-10 -right-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700"><Orbit size={200} /></div>
                 
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                   <div className="absolute inset-0 gold-bg opacity-10 blur-3xl animate-pulse" />
-                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                      <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(212,175,55,0.1)" strokeWidth="6" />
-                      <circle cx="50" cy="50" r="45" fill="none" stroke="#D4AF37" strokeWidth="6" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * (latestZpi) / 100)} className="transition-all duration-1000" />
-                   </svg>
-                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-5xl font-black tabular-nums">{latestZpi}</span>
-                      <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gold">RANK {currentRank}</span>
-                   </div>
-                </div>
+                <RankIndicator rank={currentRank} zpi={latestZpi} />
 
                 <div className="w-full grid grid-cols-1 gap-6">
                    <div className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl group hover:border-gold/30 hover:bg-white/[0.04] transition-all">
@@ -682,7 +795,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                 <p className="text-xs text-zinc-500 font-light">Mechanical load progression and progressive overload velocity.</p>
              </header>
 
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-3 gap-4">
                 <Card className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-2 text-center hover:bg-white/[0.04] transition-all">
                    <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Load Velocity</p>
                    <p className={`text-xl font-bold ${trainingData.overloadVelocity[trainingData.overloadVelocity.length-1] > 0 ? 'text-gold' : 'text-zinc-400'}`}>
@@ -695,7 +808,28 @@ export const Analytics: React.FC<AnalyticsProps> = ({ state, onTogglePin, onBack
                       {trainingData.intensityHistory.length > 0 ? (trainingData.intensityHistory.reduce((a,b)=>a+b,0)/trainingData.intensityHistory.length).toFixed(1) : '0'} <span className="text-[8px] text-zinc-700">RIR</span>
                    </p>
                 </Card>
+                <Card className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-2 text-center hover:bg-white/[0.04] transition-all">
+                   <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Prep Consistency</p>
+                   <p className={`text-xl font-bold ${prepConsistency > 80 ? 'text-emerald-500' : prepConsistency > 50 ? 'text-gold' : 'text-red-500'}`}>
+                      {prepConsistency}%
+                   </p>
+                </Card>
              </div>
+
+             <section className="space-y-6">
+                <div className="flex justify-between items-center px-2">
+                   <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Preparation Consistency</h3>
+                   <Flame size={14} className="text-gold opacity-40" />
+                </div>
+                <Card className="p-10 border-white/5 bg-[#080809] hover:bg-white/[0.02] transition-all">
+                   <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">Prep Compliance (%)</p>
+                   <SimpleBarChart 
+                      data={prepHistory} 
+                      color="rgba(212, 175, 55, 0.4)" 
+                      labels={filteredHistory.slice(-10).map(h => h.date.substring(5))} 
+                   />
+                </Card>
+             </section>
 
              <section className="space-y-6">
                 <div className="flex justify-between items-center px-2">

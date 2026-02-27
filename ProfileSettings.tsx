@@ -60,6 +60,8 @@ interface ProfileSettingsProps {
   onDeleteExercise: (id: string) => void;
   onUpdateTheme: (theme: Theme) => void;
   onToggleNav?: (visible: boolean) => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
 }
 
 const INTEGRATION_PROVIDERS = [
@@ -72,9 +74,10 @@ const INTEGRATION_PROVIDERS = [
 
 const MUSCLE_LIST: MuscleGroup[] = ['Chest', 'Back', 'Quads', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Calves', 'Glutes'];
 
-export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onLogWaist, onToggleWearable, onAddCustomExercise, onUpdateExercise, onDeleteExercise, onUpdateTheme, onToggleNav }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdateProfile, onLogout, onLogWeight, onLogWaist, onToggleWearable, onAddCustomExercise, onUpdateExercise, onDeleteExercise, onUpdateTheme, onToggleNav, onExport, onImport }) => {
   const profile = state.profile;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   
   const [showEditMetric, setShowEditMetric] = useState<'weight' | 'goalWeight' | 'waist' | 'currentFat' | 'targetFat' | 'restTimer' | null>(null);
   const [metricValue, setMetricValue] = useState(0);
@@ -432,6 +435,40 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ state, onUpdat
              ))}
            </div>
          )}
+      </section>
+
+      {/* System Authority Section */}
+      <section className="w-full space-y-6">
+        <div className="flex justify-between items-center px-2">
+           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">Data Portability</h3>
+           <Database size={14} className="text-gold opacity-50" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Card onClick={onExport} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
+            <HardDrive size={18} className="text-zinc-500" />
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest">Export Data</p>
+              <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">Download Backup</p>
+            </div>
+          </Card>
+          <Card onClick={() => importInputRef.current?.click()} className="p-6 bg-zinc-900/20 border-white/5 flex flex-col items-center gap-3 hover:border-gold/40 transition-all tap-feedback">
+            <input 
+              type="file" 
+              ref={importInputRef} 
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onImport(file);
+              }} 
+              accept=".json" 
+              className="hidden" 
+            />
+            <History size={18} className="text-zinc-500" />
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest">Import Data</p>
+              <p className="text-[7px] text-zinc-600 font-bold uppercase mt-1">Restore Protocol</p>
+            </div>
+          </Card>
+        </div>
       </section>
 
       {/* System Authority Section */}

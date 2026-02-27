@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppState, WorkoutDay, DayStatus, ExerciseLog, ExerciseMetadata } from './types.ts';
+import { AppState, WorkoutDay, DayStatus, ExerciseLog, ExerciseMetadata, Goal } from './types.ts';
 import { Card } from './components/Card.tsx';
 import { LIGHT_EXERCISES, EXERCISE_DIRECTORY } from './exerciseDirectory.ts';
 import { 
@@ -43,10 +43,11 @@ interface DashboardProps {
   onEditSplit: () => void;
   onToggleRestDay: (dateStr: string) => void;
   onRescheduleWorkout?: (missedDate: string, targetDate: string, workout: WorkoutDay) => void;
+  onUpdateSplitStartDate?: (date: string) => void;
   onToggleNav?: (visible: boolean) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onEditSplit, onToggleRestDay, onRescheduleWorkout, onToggleNav }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onEditSplit, onToggleRestDay, onRescheduleWorkout, onUpdateSplitStartDate, onToggleNav }) => {
   const now = new Date();
   const getLocalDateString = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayStr = getLocalDateString(now);
@@ -82,6 +83,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   };
 
   const getWorkoutForDate = (date: Date) => {
+    const dateStr = getLocalDateString(date);
+    if (state.workoutOverrides && state.workoutOverrides[dateStr]) {
+      return state.workoutOverrides[dateStr];
+    }
     if (!state.workoutPlan || state.workoutPlan.length === 0) return null;
     if (!state.profile?.selectedDays || state.profile.selectedDays.length === 0) return null;
     
@@ -154,12 +159,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
   const todayMetric = state.dailyMetricsHistory.find(m => m.date === todayStr);
   const score = todayMetric ? Math.round(todayMetric.zpi) : 0;
 
+  const missedDaysCount = Object.values(state.activityLog).filter(status => status === 'missed').length;
+  const isGoalAchieved = state.profile ? (
+    state.profile.goal === Goal.BULK ? (state.profile.weight >= state.profile.goalWeight) :
+    state.profile.goal === Goal.CUT ? (state.profile.weight <= state.profile.goalWeight) :
+    Math.abs(state.profile.weight - state.profile.goalWeight) < 1
+  ) : false;
+
   const getRank = (s: number) => {
+    if (isGoalAchieved && missedDaysCount < 5 && s >= 85) return 'S+';
     if (s >= 90) return 'S';
-    if (s >= 80) return 'A';
-    if (s >= 70) return 'B';
-    if (s >= 60) return 'C';
-    return 'D';
+    if (s >= 85) return 'A';
+    if (s >= 80) return 'B';
+    if (s >= 70) return 'C';
+    if (s >= 60) return 'D';
+    return 'E';
   };
   const rank = getRank(score);
 
@@ -717,7 +731,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ state, onStartWorkout, onE
         </div>
       )}
 
-      <section className="w-full space-y-6"><div className="flex justify-between items-center px-2"><h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">Temporal Adherence</h3><CalendarIcon size={14} className="text-zinc-500" /></div><Card className="p-10 border-white/5 bg-[#080809] rounded-[48px] hover:border-gold/20 transition-all">{renderMonthCalendar()}</Card></section>
+      <section className="w-full space-y-6">
+        <div className="flex justify-between items-center px-2">
+          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">Temporal Adherence</h3>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => {
+                const input = document.getElementById('dashboard-sync-input') as HTMLInputElement;
+                if (input) {
+                  if (typeof input.showPicker === 'function') input.showPicker();
+                  else input.click();
+                }
+              }}
+              className="text-[9px] font-bold gold-text uppercase tracking-widest border-b border-gold pb-0.5 hover:text-white hover:border-white transition-all"
+            >
+              Sync Cycle
+            </button>
+            <CalendarIcon size={14} className="text-zinc-500" />
+          </div>
+        </div>
+        <Card className="p-10 border-white/5 bg-[#080809] rounded-[48px] hover:border-gold/20 transition-all relative">
+          <input 
+            id="dashboard-sync-input"
+            type="date"
+            className="absolute opacity-0 pointer-events-none"
+            value={state.splitStartDate || ''}
+            onChange={(e) => onUpdateSplitStartDate?.(e.target.value)}
+          />
+          {renderMonthCalendar()}
+        </Card>
+      </section>
       
       <section className="w-full space-y-6">
         <div className="flex justify-between items-center px-2">

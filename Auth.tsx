@@ -173,6 +173,8 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
         </header>
 
         <div className="w-full space-y-8">
+          {/* Social Auth Hidden for Local-First Testing */}
+          {/* 
           {!isForgotPassword && (
             <div className="space-y-3">
               <button 
@@ -206,14 +208,15 @@ export const Auth: React.FC<AuthProps> = ({ onAuthorize, onSkip }) => {
               <div className="h-px flex-1 bg-white"></div>
             </div>
           )}
+          */}
 
           <div className={`w-full posh-card p-10 rounded-[48px] space-y-10 transition-all ${errorVisible ? 'animate-shake shadow-[0_0_20px_rgba(197,160,89,0.1)]' : 'border-white/5'}`} style={errorVisible ? { borderColor: `${theme.accentColor}80` } : {}}>
             <div className="space-y-6">
               {!isLogin && !isForgotPassword && (
                 <div className="space-y-4">
                   <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] ml-2">Select Trainer Persona</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[AIPersona.ARES, AIPersona.ATHENA].map(p => (
+                  <div className="grid grid-cols-1 gap-3">
+                    {[AIPersona.ARES].map(p => (
                       <button
                         key={p}
                         onClick={() => { triggerHaptic(5); setPersona(p); }}

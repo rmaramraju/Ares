@@ -1,7 +1,9 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { WorkoutDay, Exercise, SetType, Routine, ExerciseMetadata, MuscleGroup } from './types';
+import { WorkoutDay, Exercise, SetType, Routine, ExerciseMetadata, MuscleGroup, WarmUpExercise } from './types';
 import { EXERCISE_DIRECTORY } from './exerciseDirectory';
+import { WARMUP_LIBRARY } from './warmupLibrary';
+import { generateWarmUpSequence } from './warmupService';
 import { Card } from './components/Card';
 import { 
   Plus, 
@@ -26,7 +28,10 @@ import {
   MoveDown,
   AlertTriangle,
   Youtube,
-  Zap
+  Zap,
+  Flame,
+  Info,
+  RefreshCcw
 } from 'lucide-react';
 import { HapticService } from './hapticService.ts';
 
@@ -35,9 +40,10 @@ interface WorkoutEditorProps {
   activeRoutineId: string | null;
   startDate: string;
   userExercises?: ExerciseMetadata[];
+  warmupPresets: Record<string, string[]>;
   onAddCustomExercise?: (ex: ExerciseMetadata) => void;
   onUpdateExercise?: (ex: ExerciseMetadata) => void;
-  onSave: (routines: Routine[], activeId: string, effectiveDate: string, durationMonths?: number) => void;
+  onSave: (routines: Routine[], activeId: string, effectiveDate: string, durationMonths: number, warmupPresets: Record<string, string[]>, isPermanent: boolean) => void;
   onCancel: () => void;
 }
 
@@ -93,9 +99,10 @@ const ARCHIVE_SPLITS: Routine[] = [
   }
 ];
 
-export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRoutineId, startDate, userExercises = [], onAddCustomExercise, onUpdateExercise, onSave, onCancel }) => {
+export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRoutineId, startDate, userExercises = [], warmupPresets, onAddCustomExercise, onUpdateExercise, onSave, onCancel }) => {
   const [activeTab, setActiveTab] = useState<'MY_LIBRARY' | 'ARCHIVE'>('MY_LIBRARY');
   const [localRoutines, setLocalRoutines] = useState<Routine[]>(() => routines.map(r => JSON.parse(JSON.stringify(r))));
+  const [localWarmupPresets, setLocalWarmupPresets] = useState<Record<string, string[]>>(() => JSON.parse(JSON.stringify(warmupPresets)));
   const [currentActiveId, setCurrentActiveId] = useState(activeRoutineId || (routines[0]?.id || ''));
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
@@ -105,18 +112,22 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [planDuration, setPlanDuration] = useState(3);
   const [customDuration, setCustomDuration] = useState('');
+  const [saveType, setSaveType] = useState<'PERMANENT' | 'ONE_OFF' | null>(null);
+  const [showDurationChoice, setShowDurationChoice] = useState(false);
   
   const [showDirectory, setShowDirectory] = useState<{ routineId: string; dayId: string; supersetWithIndex?: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [addingWarmupTo, setAddingWarmupTo] = useState<{ routineId: string, dayId: string } | null>(null);
   const [editingExercise, setEditingExercise] = useState<ExerciseMetadata | null>(null);
   const [customExercise, setCustomExercise] = useState<Partial<ExerciseMetadata>>({
     name: '',
     primaryMuscle: 'Chest',
     category: 'Compound',
-    youtubeId: ''
+    youtubeId: '',
+    isWarmup: false
   });
   const [ytUrl, setYtUrl] = useState('');
 
@@ -143,13 +154,14 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       id: 'custom-' + Date.now(),
       name: customExercise.name.toUpperCase(),
       primaryMuscle: customExercise.primaryMuscle as MuscleGroup,
-      category: customExercise.category || 'Compound',
+      category: customExercise.isWarmup ? 'Warmup' : (customExercise.category || 'Compound'),
       youtubeId: videoId,
-      animationUrl: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : ''
+      animationUrl: videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '',
+      isWarmup: customExercise.isWarmup
     };
 
     onAddCustomExercise(newEx);
-    setCustomExercise({ name: '', primaryMuscle: 'Chest', category: 'Compound' });
+    setCustomExercise({ name: '', primaryMuscle: 'Chest', category: 'Compound', isWarmup: false });
     setYtUrl('');
     setShowAddCustom(false);
     HapticService.notificationSuccess();
@@ -267,7 +279,44 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
           if (field === 'sets' && typeof value === 'number') {
             newExs[exIdx].setConfigs = Array.from({ length: value }, (_, i) => (newExs[exIdx].setConfigs?.[i] || SetType.NORMAL));
           }
-          return { ...d, exercises: newExs };
+          
+          // Enforce warmup sorting
+          const sortedExs = [...newExs].sort((a, b) => {
+            const aHasWarmup = a.setConfigs?.some(s => s === SetType.WARMUP);
+            const bHasWarmup = b.setConfigs?.some(s => s === SetType.WARMUP);
+            if (aHasWarmup && !bHasWarmup) return -1;
+            if (!aHasWarmup && bHasWarmup) return 1;
+            return 0;
+          });
+          
+          return { ...d, exercises: sortedExs };
+        })
+      };
+    }));
+  };
+
+  const updateSetConfig = (routineId: string, dayId: string, exIdx: number, setIdx: number, type: SetType) => {
+    setLocalRoutines(prev => prev.map(r => {
+      if (r.id !== routineId) return r;
+      return {
+        ...r,
+        days: r.days.map(d => {
+          if (d.id !== dayId) return d;
+          const newExs = [...d.exercises];
+          const newConfigs = [...(newExs[exIdx].setConfigs || [])];
+          newConfigs[setIdx] = type;
+          newExs[exIdx] = { ...newExs[exIdx], setConfigs: newConfigs };
+          
+          // Sort exercises: Warmup exercises (any set is WARMUP) always on top
+          const sortedExs = [...newExs].sort((a, b) => {
+            const aHasWarmup = a.setConfigs?.some(s => s === SetType.WARMUP);
+            const bHasWarmup = b.setConfigs?.some(s => s === SetType.WARMUP);
+            if (aHasWarmup && !bHasWarmup) return -1;
+            if (!aHasWarmup && bHasWarmup) return 1;
+            return 0;
+          });
+
+          return { ...d, exercises: sortedExs };
         })
       };
     }));
@@ -300,7 +349,17 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
           const targetIdx = direction === 'up' ? exIdx - 1 : exIdx + 1;
           if (targetIdx < 0 || targetIdx >= newExs.length) return d;
           [newExs[exIdx], newExs[targetIdx]] = [newExs[targetIdx], newExs[exIdx]];
-          return { ...d, exercises: newExs };
+          
+          // Enforce warmup sorting
+          const sortedExs = [...newExs].sort((a, b) => {
+            const aHasWarmup = a.setConfigs?.some(s => s === SetType.WARMUP);
+            const bHasWarmup = b.setConfigs?.some(s => s === SetType.WARMUP);
+            if (aHasWarmup && !bHasWarmup) return -1;
+            if (!aHasWarmup && bHasWarmup) return 1;
+            return 0;
+          });
+          
+          return { ...d, exercises: sortedExs };
         })
       };
     }));
@@ -352,6 +411,17 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
   };
 
   const addExerciseToDay = (metadata: any) => {
+    if (addingWarmupTo) {
+      const key = `${addingWarmupTo.routineId}_${addingWarmupTo.dayId}`;
+      setLocalWarmupPresets(prev => ({
+        ...prev,
+        [key]: [...(prev[key] || []), metadata.id]
+      }));
+      setAddingWarmupTo(null);
+      setShowDirectory(null);
+      HapticService.notificationSuccess();
+      return;
+    }
     if (!showDirectory) return;
     HapticService.notificationSuccess();
     const { routineId, dayId, supersetWithIndex } = showDirectory;
@@ -419,7 +489,18 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
   };
 
   const confirmFinalize = () => {
-    onSave(localRoutines, currentActiveId, effectiveDate, planDuration);
+    if (!saveType) return;
+    
+    if (saveType === 'ONE_OFF') {
+      onSave(localRoutines, currentActiveId, effectiveDate, planDuration, localWarmupPresets, false);
+    } else {
+      setShowDurationChoice(true);
+    }
+  };
+
+  const finalizePermanent = () => {
+    const finalDuration = customDuration ? parseInt(customDuration) : planDuration;
+    onSave(localRoutines, currentActiveId, effectiveDate, finalDuration, localWarmupPresets, true);
   };
 
   const handleBack = () => {
@@ -557,6 +638,70 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                                   <input className="bg-zinc-900/50 p-3 rounded-xl text-[10px] font-bold outline-none text-white border border-white/5 focus:border-gold/30 uppercase" value={day.focus} onChange={(e) => updateDayField(routine.id, day.id, 'focus', e.target.value.toUpperCase())} />
                                 </div>
 
+                                {/* Warmup Preset Editor */}
+                                <div className="p-6 rounded-3xl bg-gold/[0.02] border border-gold/10 space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Flame size={14} className="text-gold" />
+                                      <h4 className="text-[10px] font-black uppercase tracking-widest text-gold">Warm-up Protocol</h4>
+                                    </div>
+                                    <button 
+                                      onClick={() => {
+                                        const key = `${routine.id}_${day.id}`;
+                                        const auto = generateWarmUpSequence(day.exercises).map(e => e.id);
+                                        setLocalWarmupPresets(prev => ({ ...prev, [key]: auto }));
+                                        HapticService.impactMedium();
+                                      }}
+                                      className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest hover:text-gold transition-all"
+                                    >
+                                      Auto-Generate
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    {(localWarmupPresets[`${routine.id}_${day.id}`] || []).map((warmupId, idx) => {
+                                      const warmup = mergedDirectory.find(w => w.id === warmupId);
+                                      if (!warmup) return null;
+                                      return (
+                                        <div key={warmupId} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-[8px] font-bold text-zinc-700">{idx + 1}</span>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-zinc-300">{warmup.name}</p>
+                                              <p className="text-[7px] text-zinc-600 uppercase font-bold">{warmup.primaryMuscle}</p>
+                                            </div>
+                                          </div>
+                                          <button 
+                                            onClick={() => {
+                                              const key = `${routine.id}_${day.id}`;
+                                              setLocalWarmupPresets(prev => ({
+                                                ...prev,
+                                                [key]: prev[key].filter(id => id !== warmupId)
+                                              }));
+                                              HapticService.impactLight();
+                                            }}
+                                            className="text-zinc-600 hover:text-red-500 transition-all"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                    <button 
+                                      onClick={() => {
+                                        setAddingWarmupTo({ routineId: routine.id, dayId: day.id });
+                                        setSelectedCategory('Warmup');
+                                        setShowDirectory({ routineId: routine.id, dayId: day.id });
+                                        HapticService.impactMedium();
+                                      }}
+                                      className="w-full py-3 rounded-xl border border-dashed border-white/10 text-[8px] font-black uppercase tracking-widest text-zinc-600 hover:border-gold/30 hover:text-gold transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <Plus size={12} />
+                                      Add Drill
+                                    </button>
+                                  </div>
+                                </div>
+
                                 <div className="space-y-3">
                                   {day.exercises.map((ex, exIdx) => (
                                       <div key={exIdx} className={`p-4 rounded-xl border space-y-4 group transition-all relative ${ex.supersetPartner ? 'bg-gold/5 border-gold/20 ring-1 ring-gold/10 mb-8' : 'bg-zinc-900/20 border-white/5'}`}>
@@ -589,7 +734,7 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                                                   onClick={() => setShowDirectory({ routineId: routine.id, dayId: day.id, supersetWithIndex: exIdx })}
                                                   className="px-2 py-1 rounded text-[7px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 hover:text-gold transition-all flex items-center gap-1"
                                                 >
-                                                  <Zap size={8} /> Add Partner
+                                                  <Zap size={8} /> Add superset pair
                                                 </button>
                                               )}
                                               {ex.supersetPartner && (
@@ -741,13 +886,24 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
               </div>
             </div>
           </div>
-          <Card className="bg-[#0A0A0B] border-white/5 p-8 space-y-4">
+          <Card 
+            className="bg-[#0A0A0B] border-white/5 p-8 space-y-4 cursor-pointer hover:border-gold/20 transition-all"
+            onClick={() => {
+              const input = document.getElementById('temporal-sync-input') as HTMLInputElement;
+              if (input) {
+                if (typeof input.showPicker === 'function') input.showPicker();
+                else input.click();
+              }
+            }}
+          >
             <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Effective Cycle Deployment</p>
             <input 
+              id="temporal-sync-input"
               type="date" 
               className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 text-sm gold-text outline-none focus:border-gold/30 uppercase tracking-widest transition-all"
               value={effectiveDate}
               onChange={(e) => setEffectiveDate(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
             />
             <p className="text-[8px] text-zinc-700 font-medium uppercase tracking-widest leading-relaxed">
               *Resets the rotation cycle for the active protocol on this anchor date.
@@ -759,54 +915,111 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
       {showFinalizeModal && (
         <div className="fixed inset-0 z-[600] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in fade-in duration-500">
           <div className="w-full max-w-md space-y-10">
-            <header className="text-center space-y-4">
-              <div className="w-16 h-16 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center mx-auto">
-                <Clock size={32} className="text-gold" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] text-gold font-bold uppercase tracking-[0.4em]">Temporal Commitment</p>
-                <h2 className="text-2xl font-light tracking-tight uppercase">Protocol Duration</h2>
-                <p className="text-[11px] text-zinc-500 font-light leading-relaxed">Define the operational window for this training block. Consistency is the primary catalyst for adaptation.</p>
-              </div>
-            </header>
+            {!showDurationChoice ? (
+              <>
+                <header className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center mx-auto">
+                    <RefreshCcw size={32} className="text-gold" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gold font-bold uppercase tracking-[0.4em]">Protocol Deployment</p>
+                    <h2 className="text-2xl font-light tracking-tight uppercase">Commitment Scope</h2>
+                    <p className="text-[11px] text-zinc-500 font-light leading-relaxed">Is this a one-time modification for today's session, or a permanent update to your training architecture?</p>
+                  </div>
+                </header>
 
-            <div className="grid grid-cols-2 gap-4">
-              {[3, 6, 9].map(m => (
-                <button 
-                  key={m}
-                  onClick={() => { setPlanDuration(m); setCustomDuration(''); }}
-                  className={`py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${planDuration === m && !customDuration ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                >
-                  <span className="text-2xl font-black tabular-nums">{m}</span>
-                  <span className="text-[8px] font-bold uppercase tracking-widest">Months</span>
-                </button>
-              ))}
-              <div className={`p-4 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${customDuration ? 'bg-gold/10 border-gold/40' : 'bg-zinc-900 border-white/5'}`}>
-                <input 
-                  type="number"
-                  placeholder="Custom"
-                  value={customDuration}
-                  onChange={(e) => { setCustomDuration(e.target.value); setPlanDuration(Number(e.target.value)); }}
-                  className="w-full bg-transparent text-center text-2xl font-black text-white outline-none placeholder:text-zinc-800"
-                />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Months</span>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <button 
+                    onClick={() => { setSaveType('ONE_OFF'); HapticService.impactMedium(); }}
+                    className={`p-8 rounded-3xl border transition-all text-left space-y-2 ${saveType === 'ONE_OFF' ? 'bg-gold text-black border-gold' : 'bg-zinc-900 border-white/5 text-zinc-500'}`}
+                  >
+                    <h4 className="font-black uppercase tracking-widest text-xs">One-Off Change</h4>
+                    <p className="text-[10px] opacity-60 font-light">Applies only to the current session. Base routine remains untouched.</p>
+                  </button>
+                  <button 
+                    onClick={() => { setSaveType('PERMANENT'); HapticService.impactMedium(); }}
+                    className={`p-8 rounded-3xl border transition-all text-left space-y-2 ${saveType === 'PERMANENT' ? 'bg-gold text-black border-gold' : 'bg-zinc-900 border-white/5 text-zinc-500'}`}
+                  >
+                    <h4 className="font-black uppercase tracking-widest text-xs">Permanent Update</h4>
+                    <p className="text-[10px] opacity-60 font-light">Updates the core routine. All future sessions will reflect this change.</p>
+                  </button>
+                </div>
 
-            <div className="space-y-4">
-              <button 
-                onClick={confirmFinalize}
-                className="w-full py-6 bg-white text-black rounded-[32px] text-[11px] font-black uppercase tracking-[0.4em] shadow-2xl active:scale-95 transition-all"
-              >
-                Finalize Protocol
-              </button>
-              <button 
-                onClick={() => setShowFinalizeModal(false)}
-                className="w-full py-4 text-zinc-600 font-bold uppercase tracking-widest text-[9px] hover:text-zinc-400 transition-colors"
-              >
-                Abort & Return
-              </button>
-            </div>
+                <div className="space-y-4">
+                  <button 
+                    disabled={!saveType}
+                    onClick={confirmFinalize}
+                    className={`w-full py-6 rounded-[32px] text-[11px] font-black uppercase tracking-[0.4em] transition-all ${saveType ? 'bg-white text-black shadow-2xl active:scale-95' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}
+                  >
+                    Continue
+                  </button>
+                  <button 
+                    onClick={() => setShowFinalizeModal(false)}
+                    className="w-full py-4 text-zinc-600 font-bold uppercase tracking-widest text-[9px] hover:text-zinc-400 transition-colors"
+                  >
+                    Abort & Return
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <header className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center mx-auto">
+                    <Clock size={32} className="text-gold" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-gold font-bold uppercase tracking-[0.4em]">Temporal Commitment</p>
+                    <h2 className="text-2xl font-light tracking-tight uppercase">Protocol Duration</h2>
+                    <p className="text-[11px] text-zinc-500 font-light leading-relaxed">Define the operational window for this training block. Consistency is the primary catalyst for adaptation.</p>
+                  </div>
+                </header>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={() => { setPlanDuration(0); setCustomDuration(''); }}
+                    className={`py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${planDuration === 0 && !customDuration ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                  >
+                    <span className="text-sm font-black uppercase tracking-widest">Remaining</span>
+                    <span className="text-[8px] font-bold uppercase tracking-widest opacity-60">No Extension</span>
+                  </button>
+                  {[3, 6, 9].map(m => (
+                    <button 
+                      key={m}
+                      onClick={() => { setPlanDuration(m); setCustomDuration(''); }}
+                      className={`py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${planDuration === m && !customDuration ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                    >
+                      <span className="text-2xl font-black tabular-nums">{m}</span>
+                      <span className="text-[8px] font-bold uppercase tracking-widest">Months</span>
+                    </button>
+                  ))}
+                  <div className={`p-4 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 ${customDuration ? 'bg-gold/10 border-gold/40' : 'bg-zinc-900 border-white/5'}`}>
+                    <input 
+                      type="number"
+                      placeholder="Custom"
+                      value={customDuration}
+                      onChange={(e) => { setCustomDuration(e.target.value); setPlanDuration(Number(e.target.value)); }}
+                      className="w-full bg-transparent text-center text-2xl font-black text-white outline-none placeholder:text-zinc-800"
+                    />
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Months</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <button 
+                    onClick={finalizePermanent}
+                    className="w-full py-6 bg-white text-black rounded-[32px] text-[11px] font-black uppercase tracking-[0.4em] shadow-2xl active:scale-95 transition-all"
+                  >
+                    Finalize Protocol
+                  </button>
+                  <button 
+                    onClick={() => setShowDurationChoice(false)}
+                    className="w-full py-4 text-zinc-600 font-bold uppercase tracking-widest text-[9px] hover:text-zinc-400 transition-colors"
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -925,11 +1138,12 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                      <select 
                       className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none" 
                       value={customExercise.category} 
-                      onChange={e => setCustomExercise({...customExercise, category: e.target.value})}
+                      onChange={e => setCustomExercise({...customExercise, category: e.target.value, isWarmup: e.target.value === 'Warmup'})}
                      >
                         <option value="Compound">COMPOUND</option>
                         <option value="Isolation">ISOLATION</option>
                         <option value="Cardio">CARDIO</option>
+                        <option value="Warmup">WARMUP</option>
                         <option value="HIIT">HIIT</option>
                         <option value="Recovery">RECOVERY</option>
                      </select>
@@ -1022,11 +1236,12 @@ export const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ routines, activeRo
                       disabled={!editingExercise.id.startsWith('custom-')}
                       className="w-full bg-zinc-900 border border-white/5 p-5 rounded-2xl text-[10px] font-bold text-white outline-none focus:border-gold uppercase appearance-none disabled:opacity-50" 
                       value={editingExercise.category} 
-                      onChange={e => setEditingExercise({...editingExercise, category: e.target.value})}
+                      onChange={e => setEditingExercise({...editingExercise, category: e.target.value, isWarmup: e.target.value === 'Warmup'})}
                      >
                         <option value="Compound">COMPOUND</option>
                         <option value="Isolation">ISOLATION</option>
                         <option value="Cardio">CARDIO</option>
+                        <option value="Warmup">WARMUP</option>
                         <option value="HIIT">HIIT</option>
                         <option value="Recovery">RECOVERY</option>
                      </select>

@@ -30,8 +30,7 @@ export enum UnitSystem {
 }
 
 export enum AIPersona {
-  ARES = 'Ares',
-  ATHENA = 'Athena'
+  ARES = 'Ares'
 }
 
 export enum Theme {
@@ -44,10 +43,31 @@ export enum SetType {
   NORMAL = 'Normal',
   DROPSET = 'Dropset',
   SUPERSET = 'Superset',
-  FAILURE = 'Failure'
+  FAILURE = 'Failure',
+  WARMUP = 'Warmup'
 }
 
-export type MuscleGroup = 'Chest' | 'Back' | 'Quads' | 'Hamstrings' | 'Shoulders' | 'Biceps' | 'Triceps' | 'Core' | 'Calves' | 'Glutes';
+export type MuscleGroup = 'Chest' | 'Back' | 'Quads' | 'Hamstrings' | 'Shoulders' | 'Biceps' | 'Triceps' | 'Core' | 'Calves' | 'Glutes' | 'Full Body' | 'Explosive';
+
+export enum WarmUpSubCategory {
+  ACTIVATION = 'Activation',
+  MOBILITY = 'Mobility',
+  PATTERN_PREP = 'Pattern Prep',
+  JOINT_PREP = 'Joint Prep',
+  NEURAL_PREP = 'Neural Prep',
+  GENERAL = 'General'
+}
+
+export interface WarmUpExercise {
+  id: string;
+  name: string;
+  primaryMuscle: MuscleGroup;
+  subCategory: WarmUpSubCategory;
+  instructions: string;
+  youtubeId?: string;
+  durationSeconds?: number;
+  reps?: string;
+}
 
 export type DayStatus = 'full' | 'workout_only' | 'food_only' | 'missed' | 'rest' | 'sick';
 
@@ -60,6 +80,7 @@ export interface ExerciseMetadata {
   youtubeId?: string;
   category: string;
   isCardio?: boolean;
+  isWarmup?: boolean;
 }
 
 export interface Exercise {
@@ -84,7 +105,7 @@ export interface WorkoutDay {
 export interface Routine {
   id: string;
   name: string;
-  creator: 'Ares' | 'Athena' | 'User' | string;
+  creator: 'Ares' | 'User' | string;
   days: WorkoutDay[];
   description?: string;
   isOfficial?: boolean;
@@ -159,6 +180,8 @@ export interface WorkoutHistoryItem {
   duration: number;
   calories: number;
   logs: Record<string, ExerciseLog[]>;
+  warmupLogs?: Record<string, boolean>;
+  warmupSkipped?: boolean;
 }
 
 export interface DailyMetric {
@@ -210,6 +233,7 @@ export interface AppState {
   workoutHistory: WorkoutHistoryItem[];
   activityLog: Record<string, DayStatus>;
   rescheduledWorkouts: Record<string, WorkoutDay>;
+  workoutOverrides: Record<string, WorkoutDay>; // date -> overridden workout
   pinnedMetrics: string[];
   dailyMetricsHistory: DailyMetric[];
   weightHistory: WeightRecord[];
@@ -218,5 +242,7 @@ export interface AppState {
   connectedWearables: string[];
   persona: AIPersona | null;
   userExercises: ExerciseMetadata[];
+  warmupLibrary: WarmUpExercise[];
+  warmupPresets: Record<string, string[]>; // routineId_dayId -> warmupExerciseIds
   theme: Theme;
 }

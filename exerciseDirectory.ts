@@ -1,10 +1,21 @@
 
 import { ExerciseMetadata } from './types';
+import { WARMUP_LIBRARY } from './warmupLibrary';
 
 // Helper to generate thumbnail URL
 const ytThumb = (id: string) => `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 
 export const EXERCISE_DIRECTORY: ExerciseMetadata[] = [
+  // --- WARMUP ---
+  ...WARMUP_LIBRARY.map(w => ({
+    id: w.id,
+    name: w.name,
+    primaryMuscle: w.primaryMuscle,
+    youtubeId: w.youtubeId,
+    animationUrl: w.youtubeId ? ytThumb(w.youtubeId) : 'https://picsum.photos/seed/warmup/400/300',
+    category: 'Warmup',
+    isWarmup: true
+  })),
   // --- COMPOUND ---
   {
     id: 'comp_bench',

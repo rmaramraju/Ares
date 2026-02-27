@@ -16,12 +16,6 @@ const themes: Record<AIPersona, ThemeConfig> = {
     logoPath: 'https://picsum.photos/seed/ares/200/200', // Placeholder
     appIconPath: 'https://picsum.photos/seed/ares-icon/64/64', // Placeholder
   },
-  [AIPersona.ATHENA]: {
-    brandName: 'Athena',
-    accentColor: '#999B9B',
-    logoPath: 'https://picsum.photos/seed/athena/200/200', // Placeholder
-    appIconPath: 'https://picsum.photos/seed/athena-icon/64/64', // Placeholder
-  },
 };
 
 interface ThemeContextType {
@@ -35,7 +29,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode; initialPersona?: AIPersona }> = ({ children, initialPersona = AIPersona.ARES }) => {
   const [persona, setPersonaState] = useState<AIPersona>(() => {
     const saved = localStorage.getItem('trainer_persona');
-    return (saved as AIPersona) || initialPersona;
+    if (saved && Object.values(AIPersona).includes(saved as AIPersona)) {
+      return saved as AIPersona;
+    }
+    return initialPersona;
   });
 
   const setPersona = (newPersona: AIPersona) => {
@@ -43,9 +40,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialPersona
     localStorage.setItem('trainer_persona', newPersona);
   };
 
-  const theme = themes[persona];
+  const theme = themes[persona] || themes[AIPersona.ARES];
+
+  if (!theme) {
+    console.error('Theme not found for persona:', persona);
+  }
 
   useEffect(() => {
+    if (!theme) return;
     // Update CSS variables for global styles
     document.documentElement.style.setProperty('--accent-color', theme.accentColor);
     document.documentElement.style.setProperty('--gold-solid', theme.accentColor); // Keep compatibility with existing styles if needed

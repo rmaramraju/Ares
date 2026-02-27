@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Meal, UserProfile } from './types';
+import { Meal, UserProfile } from './types.ts';
+import { AIService } from './src/services/aiService.ts';
 import { Card } from './components/Card';
 import { Plus, Trash2, Check, X, Target, ArrowLeft, Leaf, Edit3, CheckCircle2, ChevronRight, Sparkles, RefreshCw, ChefHat, Info } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 
 interface FoodTrackerProps {
   meals: Meal[];
@@ -84,10 +85,8 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
     triggerHaptic();
     setIsRegenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate a daily diet plan for a user with the following profile:
+      const responseText = await AIService.generateContent({
+        prompt: `Generate a daily diet plan for a user with the following profile:
         Goal: ${profile.goal}
         Weight: ${profile.weight}kg
         Height: ${profile.height}cm
@@ -103,28 +102,25 @@ export const FoodTracker: React.FC<FoodTrackerProps> = ({ meals, profile, onTogg
 
         Provide 3-5 meals that strictly follow these macro targets.
         For each meal, include detailed cooking instructions.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                calories: { type: Type.NUMBER },
-                protein: { type: Type.NUMBER },
-                carbs: { type: Type.NUMBER },
-                fats: { type: Type.NUMBER },
-                fiber: { type: Type.NUMBER },
-                cookingInstructions: { type: Type.STRING }
-              },
-              required: ["name", "calories", "protein", "carbs", "fats", "fiber", "cookingInstructions"]
-            }
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              calories: { type: Type.NUMBER },
+              protein: { type: Type.NUMBER },
+              carbs: { type: Type.NUMBER },
+              fats: { type: Type.NUMBER },
+              fiber: { type: Type.NUMBER },
+              cookingInstructions: { type: Type.STRING }
+            },
+            required: ["name", "calories", "protein", "carbs", "fats", "fiber", "cookingInstructions"]
           }
         }
       });
 
-      const newMeals: Meal[] = JSON.parse(response.text || "[]").map((m: any) => ({
+      const newMeals: Meal[] = JSON.parse(responseText || "[]").map((m: any) => ({
         ...m,
         id: Math.random().toString(36).substr(2, 9),
         checked: false

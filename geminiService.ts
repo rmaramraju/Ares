@@ -1,9 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { UserProfile } from "./types";
+import { AIService } from "./src/services/aiService";
 
 export const generateFitnessPlan = async (profile: UserProfile) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
   const prompt = `Act as an elite sports scientist and nutritionist. Architect a scientifically-optimized fitness and nutrition protocol for a ${profile.age}y/o ${profile.gender} ${profile.bodyType}.
     PRIMARY GOAL: ${profile.goal}.
     EXPERIENCE LEVEL: ${profile.experienceLevel || "Intermediate"}.
@@ -25,64 +24,60 @@ export const generateFitnessPlan = async (profile: UserProfile) => {
     6. Provide the plan in the strictly requested JSON format.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            workoutPlan: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  dayName: { type: Type.STRING },
-                  focus: { type: Type.STRING },
-                  exercises: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        name: { type: Type.STRING },
-                        sets: { type: Type.NUMBER },
-                        reps: { type: Type.STRING },
-                        instructions: { type: Type.STRING },
-                        category: { type: Type.STRING }
-                      },
-                      required: ["name", "sets", "reps", "instructions"]
-                    }
+    const responseText = await AIService.generateContent({
+      prompt,
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          workoutPlan: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                dayName: { type: Type.STRING },
+                focus: { type: Type.STRING },
+                exercises: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      sets: { type: Type.NUMBER },
+                      reps: { type: Type.STRING },
+                      instructions: { type: Type.STRING },
+                      category: { type: Type.STRING }
+                    },
+                    required: ["name", "sets", "reps", "instructions"]
                   }
-                },
-                required: ["dayName", "focus", "exercises"]
-              }
-            },
-            dietPlan: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  calories: { type: Type.NUMBER },
-                  protein: { type: Type.NUMBER },
-                  carbs: { type: Type.NUMBER },
-                  fats: { type: Type.NUMBER },
-                  fiber: { type: Type.NUMBER }
-                },
-                required: ["name", "calories", "protein", "carbs", "fats", "fiber"]
-              }
-            },
-            goalWeight: { type: Type.NUMBER },
-            targetBodyFat: { type: Type.NUMBER },
-            cardioRecommendation: { type: Type.STRING }
+                }
+              },
+              required: ["dayName", "focus", "exercises"]
+            }
           },
-          required: ["workoutPlan", "dietPlan", "goalWeight", "targetBodyFat", "cardioRecommendation"]
-        }
+          dietPlan: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                calories: { type: Type.NUMBER },
+                protein: { type: Type.NUMBER },
+                carbs: { type: Type.NUMBER },
+                fats: { type: Type.NUMBER },
+                fiber: { type: Type.NUMBER }
+              },
+              required: ["name", "calories", "protein", "carbs", "fats", "fiber"]
+            }
+          },
+          goalWeight: { type: Type.NUMBER },
+          targetBodyFat: { type: Type.NUMBER },
+          cardioRecommendation: { type: Type.STRING }
+        },
+        required: ["workoutPlan", "dietPlan", "goalWeight", "targetBodyFat", "cardioRecommendation"]
       }
     });
 
-    const jsonStr = response.text?.trim() || "{}";
+    const jsonStr = responseText?.trim() || "{}";
     return JSON.parse(jsonStr);
   } catch (error) {
     console.error("ARES_API_ERR: Protocol Synthesis Failed", error);
